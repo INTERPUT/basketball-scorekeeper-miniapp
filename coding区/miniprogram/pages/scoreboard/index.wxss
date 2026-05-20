@@ -1,0 +1,7 @@
+button {
+  margin-bottom: 32rpx;
+}
+
+.textarea {
+  margin-bottom: 18rpx;
+}

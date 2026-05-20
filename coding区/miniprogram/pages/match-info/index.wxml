@@ -1,0 +1,32 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+
+  <block wx:elif="{{snapshot}}">
+    <view class="panel">
+      <view class="tag">只读查看</view>
+      <view class="section-title">比赛信息</view>
+      <view class="score">{{snapshot.teams[0].score}} : {{snapshot.teams[1].score}}</view>
+      <view class="muted">第 {{snapshot.currentPeriod}} 节 · 房间码 {{snapshot.roomCode}}</view>
+    </view>
+
+    <view class="panel stat-grid">
+      <view class="stat">
+        <view>{{snapshot.teams[0].name}}</view>
+        <view class="muted">{{snapshot.teams[0].playerCount}} 名球员</view>
+        <view class="muted">本节犯规 {{snapshot.teams[0].currentPeriodFouls}}</view>
+        <view class="muted">剩余暂停 {{snapshot.teams[0].timeoutsRemaining}}</view>
+      </view>
+      <view class="stat">
+        <view>{{snapshot.teams[1].name}}</view>
+        <view class="muted">{{snapshot.teams[1].playerCount}} 名球员</view>
+        <view class="muted">本节犯规 {{snapshot.teams[1].currentPeriodFouls}}</view>
+        <view class="muted">剩余暂停 {{snapshot.teams[1].timeoutsRemaining}}</view>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="section-title">当前状态</view>
+      <view>最近事件 {{snapshot.recentEvents.length}} 条。</view>
+    </view>
+  </block>
+</view>

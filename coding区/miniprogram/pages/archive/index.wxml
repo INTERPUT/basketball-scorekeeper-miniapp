@@ -1,0 +1,64 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+
+  <view class="panel">
+    <view class="tag">赛后流程</view>
+    <view class="section-title">双方队长签字</view>
+    <view class="muted">签字完成后生成正式计分表 HTML、PDF 报告和结构化归档 JSON。</view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">主队队长</view>
+    <canvas
+      canvas-id="home_captainCanvas"
+      class="signature-canvas"
+      data-role="home_captain"
+      bindtouchstart="handleTouchStart"
+      bindtouchmove="handleTouchMove"
+      bindtouchend="handleTouchEnd"
+    />
+    <view class="button-row">
+      <button class="secondary" data-role="home_captain" bindtap="handleClear">清除</button>
+      <button class="primary" data-role="home_captain" bindtap="handleSave">保存主队签字</button>
+    </view>
+    <view wx:if="{{homeSignature}}" class="muted">已保存：{{homeSignature.signedAt}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">客队队长</view>
+    <canvas
+      canvas-id="away_captainCanvas"
+      class="signature-canvas"
+      data-role="away_captain"
+      bindtouchstart="handleTouchStart"
+      bindtouchmove="handleTouchMove"
+      bindtouchend="handleTouchEnd"
+    />
+    <view class="button-row">
+      <button class="secondary" data-role="away_captain" bindtap="handleClear">清除</button>
+      <button class="primary" data-role="away_captain" bindtap="handleSave">保存客队签字</button>
+    </view>
+    <view wx:if="{{awaySignature}}" class="muted">已保存：{{awaySignature.signedAt}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">生成留档</view>
+    <button class="primary" loading="{{busy}}" bindtap="handleGenerateArchive">生成归档与导出文件</button>
+    <block wx:if="{{archive}}">
+      <view class="muted">归档版本：v{{archive.version}}</view>
+      <view wx:for="{{archive.files}}" wx:key="exportFileId" class="file-row">
+        <view>{{item.type}}</view>
+        <view class="muted">{{item.fileID}}</view>
+        <button
+          class="secondary file-action"
+          data-type="{{item.type}}"
+          data-file-id="{{item.fileID}}"
+          data-temp-file-url="{{item.tempFileURL}}"
+          bindtap="handleOpenFile"
+        >
+          {{item.type === 'pdf_report' ? '打开 PDF' : '复制链接'}}
+        </button>
+      </view>
+    </block>
+  </view>
+</view>

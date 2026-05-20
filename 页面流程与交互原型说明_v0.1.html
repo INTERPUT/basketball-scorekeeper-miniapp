@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>篮球技术台自动化 - 页面流程与交互原型说明 v0.4</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --paper: #ffffff;
+      --ink: #16202a;
+      --muted: #667085;
+      --line: #d8dee8;
+      --accent: #0f766e;
+      --accent-soft: #edf7f5;
+      --warn: #b45309;
+      --warn-soft: #fff7ed;
+      --ok: #166534;
+      --ok-soft: #f0fdf4;
+      --info: #1d4ed8;
+      --info-soft: #eff6ff;
+      --comment: #fff3bf;
+      --comment-border: #e9b949;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    button.is-active {
+      color: #ffffff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .workspace {
+      width: min(1480px, calc(100% - 32px));
+      margin: 24px auto 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+
+    h1, h2, h3, h4 {
+      line-height: 1.3;
+      margin-top: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 21px;
+      margin-top: 30px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+
+    h4 {
+      font-size: 15px;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+
+    p, li, td, th {
+      font-size: 15px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .lead {
+      padding: 16px;
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+    }
+
+    .toc {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      margin-top: 18px;
+    }
+
+    .toc ul {
+      margin-bottom: 0;
+      columns: 2;
+    }
+
+    .toc a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .toc a:hover {
+      color: var(--accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--line);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+
+    .callout.ok {
+      border-left-color: var(--ok);
+      background: var(--ok-soft);
+    }
+
+    .callout.info {
+      border-left-color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .callout.warn {
+      border-left-color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tag.p0 {
+      color: var(--ok);
+      border-color: #bbf7d0;
+      background: var(--ok-soft);
+    }
+
+    .tag.rule {
+      color: var(--info);
+      border-color: #bfdbfe;
+      background: var(--info-soft);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .flow-step {
+      position: relative;
+      border: 1px solid var(--line);
+      padding: 14px;
+      background: #ffffff;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+      font-weight: 700;
+      background: var(--bg);
+      padding: 0 2px;
+    }
+
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      margin-top: 14px;
+    }
+
+    figure {
+      margin: 0;
+    }
+
+    figure img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid var(--line);
+    }
+
+    figcaption {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .screen-section + .screen-section {
+      margin-top: 24px;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      background: #f3f4f6;
+      padding: 1px 4px;
+    }
+
+    ul, ol {
+      padding-left: 20px;
+    }
+
+    .comment-anchor {
+      background: var(--comment);
+      border-bottom: 2px solid var(--comment-border);
+      cursor: pointer;
+    }
+
+    .comments-panel {
+      position: sticky;
+      top: 78px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .comments-panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .comment-item {
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #fffdf2;
+    }
+
+    .comment-item.is-active {
+      border-color: var(--comment-border);
+    }
+
+    .comment-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .comment-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .comment-actions button {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .empty-comments {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    [contenteditable="true"] {
+      outline: 2px dashed transparent;
+      outline-offset: 4px;
+    }
+
+    body.editing [contenteditable="true"] {
+      outline-color: rgba(15, 118, 110, 0.35);
+    }
+
+    @media (max-width: 1080px) {
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step:not(:last-child)::after {
+        display: none;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .workspace {
+        width: calc(100% - 16px);
+        margin: 12px auto 20px;
+        grid-template-columns: 1fr;
+      }
+
+      .comments-panel {
+        position: static;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .toc ul {
+        columns: 1;
+      }
+
+      .mockup-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 23px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-group">
+      <button id="toggleEdit" type="button">开启编辑</button>
+      <button id="addComment" type="button">给选中文本加批注</button>
+      <button id="toggleComments" type="button">隐藏批注</button>
+      <button id="exportAnnotatedHtml" type="button">导出含批注 HTML</button>
+      <button id="exportCleanHtml" type="button">导出清洁版 HTML</button>
+    </div>
+    <div class="status" id="statusText">当前为阅读模式</div>
+  </header>
+
+  <div class="workspace">
+    <main id="documentContent" contenteditable="false">
+      <h1>页面流程与交互原型说明 v0.4</h1>
+      <p class="meta">产品：篮球技术台自动化 ｜ 日期：2026-05-18 ｜ 依据：产品文档模板 v0.7、事件字典 v0.3 ｜ 文档格式：可编辑 HTML</p>
+
+      <p class="lead">
+        本文档用于固定首版微信小程序的页面边界、页面跳转、角色权限和关键交互。
+        它不是最终视觉稿，而是开发前的页面蓝图；下方效果图用于帮助确认页面信息层级和操作方式。
+      </p>
+
+      <section class="toc">
+        <h2>目录</h2>
+        <ul>
+          <li><a href="#goals">1. 设计目标</a></li>
+          <li><a href="#overview">2. 总体流程</a></li>
+          <li><a href="#routes">3. 页面与跳转关系</a></li>
+          <li><a href="#roles">4. 角色与模式</a></li>
+          <li><a href="#screens">5. 页面原型</a></li>
+          <li><a href="#interaction">6. 关键交互规则</a></li>
+          <li><a href="#states">7. 关键状态与异常</a></li>
+          <li><a href="#acceptance">8. 页面验收标准</a></li>
+          <li><a href="#history">9. 版本记录</a></li>
+        </ul>
+      </section>
+
+      <h2 id="goals">1. 设计目标</h2>
+      <div class="grid">
+        <section class="box">
+          <h3>技术员侧</h3>
+          <ul>
+            <li>单人可独立完成建赛、录入、确认、纠错和导出。</li>
+            <li>高频信息首屏可见：比分、节次、时间、犯规、暂停、规则提醒。</li>
+            <li>自然语言输入是主入口，确认动作必须醒目。</li>
+          </ul>
+        </section>
+        <section class="box">
+          <h3>观众侧</h3>
+          <ul>
+            <li>通过四位房间码快速进入。</li>
+            <li>只读查看，不出现会误导的编辑入口。</li>
+            <li>比赛信息优先于说明性内容，打开即看结果。</li>
+          </ul>
+        </section>
+      </div>
+
+      <h2 id="overview">2. 总体流程</h2>
+      <div class="flow">
+        <section class="flow-step">
+          <h3>1. 加入比赛</h3>
+          <p>观众输入四位房间码；技术员可从此进入创建比赛。</p>
+        </section>
+        <section class="flow-step">
+          <h3>2. 创建比赛</h3>
+          <p>技术员配置球队、球员、球衣颜色、单节时长。</p>
+        </section>
+        <section class="flow-step">
+          <h3>3. 技术台</h3>
+          <p>比赛中录入事件、确认 AI 解析、管理时间线。</p>
+        </section>
+        <section class="flow-step">
+          <h3>4. 比赛信息</h3>
+          <p>观众只读查看同一场比赛的实时数据。</p>
+        </section>
+        <section class="flow-step">
+          <h3>5. 赛后确认</h3>
+          <p>双方队长签字，生成留档和正式计分表。</p>
+        </section>
+      </div>
+
+      <div class="callout info">
+        <span class="tag rule">核心原则</span>
+        技术员与观众尽量共用同一套比赛信息结构，只在权限和可操作控件上分叉。
+      </div>
+
+      <h2 id="routes">3. 页面与跳转关系</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>起点</th>
+            <th>动作</th>
+            <th>目标页面</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>加入比赛页</td>
+            <td>输入有效四位房间码</td>
+            <td>比赛信息页</td>
+            <td>观众 / 球员只读进入。</td>
+          </tr>
+          <tr>
+            <td>加入比赛页</td>
+            <td>点击创建比赛</td>
+            <td>创建比赛页</td>
+            <td>技术员开始建赛。</td>
+          </tr>
+          <tr>
+            <td>创建比赛页</td>
+            <td>完成必填项并创建房间</td>
+            <td>技术台页</td>
+            <td>系统建立房间并进入主控界面。</td>
+          </tr>
+          <tr>
+            <td>技术台页</td>
+            <td>比赛结束</td>
+            <td>赛后确认页</td>
+            <td>锁定比赛结果，进入签字与导出。</td>
+          </tr>
+          <tr>
+            <td>赛后确认页</td>
+            <td>双方签字并确认生成留档</td>
+            <td>导出动作 / 归档状态</td>
+            <td>房间销毁，导出 PDF 和正式计分表。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="roles">4. 角色与模式</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>页面</th>
+            <th>技术员</th>
+            <th>观众 / 球员</th>
+            <th>队长</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>加入比赛页</td>
+            <td>可创建比赛</td>
+            <td>可输入房间码</td>
+            <td>可输入房间码</td>
+          </tr>
+          <tr>
+            <td>创建比赛页</td>
+            <td>可编辑</td>
+            <td>不可见</td>
+            <td>不可见</td>
+          </tr>
+          <tr>
+            <td>技术台页</td>
+            <td>可编辑、可确认、可纠错</td>
+            <td>不可进入</td>
+            <td>不可进入</td>
+          </tr>
+          <tr>
+            <td>比赛信息页</td>
+            <td>可查看</td>
+            <td>只读查看</td>
+            <td>只读查看</td>
+          </tr>
+          <tr>
+            <td>赛后确认页</td>
+            <td>发起确认与导出</td>
+            <td>不可操作</td>
+            <td>完成签字</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="screens">5. 页面原型</h2>
+
+      <section class="screen-section">
+        <h3>5.1 加入比赛页</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/01-加入比赛.png" alt="加入比赛页效果图">
+            <figcaption>加入比赛页效果图</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>让观众、球员最快速进入比赛；同时给技术员一个明显的“创建比赛”入口。</p>
+            <h4>核心组件</h4>
+            <ul>
+              <li>四位房间码输入框。</li>
+              <li>主按钮：<code>进入比赛</code>。</li>
+              <li>次按钮：<code>创建比赛</code>。</li>
+              <li>辅助提示：比赛结束后房间自动销毁。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>房间码必须为四位数字。</li>
+              <li>无效房间码直接报错，不进入空页面。</li>
+              <li>技术员创建比赛与观众加入比赛在同页完成分流。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section">
+        <h3>5.2 创建比赛页</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/02-创建比赛.png" alt="创建比赛页效果图">
+            <figcaption>创建比赛页效果图</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>在一页内完成首版所有赛前配置，不引入多步向导。</p>
+            <h4>核心组件</h4>
+            <ul>
+              <li>四位房间码设置。</li>
+              <li>双方球队名称、球衣颜色。</li>
+              <li>球员号码与姓名录入。</li>
+              <li>单节时长。</li>
+              <li>主按钮：<code>创建房间</code>。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>首版不做名单导入，只支持手动录入或复制粘贴。</li>
+              <li>高级信息采用可折叠区，包含赛事名称、地点、裁判等正式表头字段。</li>
+              <li>球队、号码、姓名是进入比赛前的必填项。</li>
+              <li>同队号码重复时应在本页直接提示。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section">
+        <h3>5.3 技术台页</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/03-技术台-计时控制版.png" alt="技术台页计时控制效果图">
+            <figcaption>技术台页效果图：普通比赛态直接显示计时控制</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>让单人技术员在一屏内完成实时记录和确认，不在高频操作中跳页。</p>
+            <h4>核心组件</h4>
+            <ul>
+              <li>顶栏：节次、时间、双方比分。</li>
+              <li>提醒区：个人 5 犯、球队第 5 犯罚球、最后 1 分钟提醒。</li>
+              <li>计时控制区：开节前显示启动；比赛进行中显示暂停；暂停后显示继续；更正时间、结束本节常驻。</li>
+              <li>状态区：球队犯规、暂停。</li>
+              <li>输入区：文本框、语音按钮。</li>
+              <li>AI 识别结果卡片：标准事件、影响、<code>确认</code>、<code>退回重填</code>。</li>
+              <li>逐分记录列表。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>正式数据只在点击确认后变化。</li>
+              <li>非标准输入统一返回重新填写，不做对话式追问。</li>
+              <li>撤销、修正、补录都应从事件时间线进入。</li>
+              <li>普通比赛态首屏也必须显示计时控制，不能只在提醒态出现。</li>
+              <li>暂停额度按上半场 2 次、下半场 3 次、每个加时 1 次显示和扣减。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section">
+        <h3>5.4 技术台提醒态</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/06-技术台提醒态.png" alt="技术台提醒态效果图">
+            <figcaption>技术台提醒态效果图</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>在不打断技术员主流程的前提下，把必须即时处理的规则节点放到首屏最显眼区域。</p>
+            <h4>关键提醒</h4>
+            <ul>
+              <li>球员个人犯规达到 5 次。</li>
+              <li>球队单节累计第 5 次及之后犯规，需要罚球。</li>
+              <li>比赛距离结束仅剩 1 分钟。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>提醒必须自动出现，不能依赖技术员主动查看二级页面。</li>
+              <li>提醒可被确认已读，但不能静默消失后无记录。</li>
+              <li>提醒与计时控制同时可见，便于临场处理。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section">
+        <h3>5.5 比赛信息页</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/04-比赛信息.png" alt="比赛信息页效果图">
+            <figcaption>比赛信息页效果图</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>为观众和球员提供清晰、稳定、只读的实时信息视图。</p>
+            <h4>核心组件</h4>
+            <ul>
+              <li>比分、节次、比赛时间。</li>
+              <li>球队犯规与暂停。</li>
+              <li>逐分记录。</li>
+              <li>球员数据页签，首版先承载正式计分相关数据。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>明显标识 <code>只读查看</code>。</li>
+              <li>不出现输入框、确认按钮、纠错按钮。</li>
+              <li>数据与技术台页保持同源。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section">
+        <h3>5.6 赛后确认页</h3>
+        <div class="mockup-grid">
+          <figure>
+            <img src="./assets/页面流程原型/05-赛后确认.png" alt="赛后确认页效果图">
+            <figcaption>赛后确认页效果图</figcaption>
+          </figure>
+          <div>
+            <h4>页面目标</h4>
+            <p>把“核对结果、双方签字、生成留档”收拢在一次明确的收尾动作里。</p>
+            <h4>核心组件</h4>
+            <ul>
+              <li>最终比分。</li>
+              <li>逐节比分。</li>
+              <li>双方队长签名区。</li>
+              <li>主按钮：<code>确认并生成留档</code>。</li>
+              <li>导出入口：PDF、正式计分表。</li>
+            </ul>
+            <h4>交互规则</h4>
+            <ul>
+              <li>双方队长签字完成前，不允许生成最终留档。</li>
+              <li>确认后比赛结果锁定，房间销毁。</li>
+              <li>后续如需修正，应生成新版本，不覆盖原件。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <h2 id="interaction">6. 关键交互规则</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>交互点</th>
+            <th>规则</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>自然语言输入</td>
+            <td>文本和语音统一转成标准事件草稿；正式数据必须确认后才生效。</td>
+          </tr>
+          <tr>
+            <td>语音输入</td>
+            <td>火山引擎只负责转写，转写文本必须可见且可修改。</td>
+          </tr>
+          <tr>
+            <td>输入退回</td>
+            <td>缺球队 / 球员 / 事件时，统一退回重填，不做逐项追问。</td>
+          </tr>
+          <tr>
+            <td>逐分记录</td>
+            <td>既用于展示，也作为撤销、修正、补录的入口。</td>
+          </tr>
+          <tr>
+            <td>计时控制</td>
+            <td>技术台页首屏支持启动、暂停、继续、更正时间和手动结束本节比赛；进行中显示暂停，暂停后显示继续。</td>
+          </tr>
+          <tr>
+            <td>暂停额度</td>
+            <td>按上半场 2 次、下半场 3 次、每个加时 1 次管理。</td>
+          </tr>
+          <tr>
+            <td>规则提醒</td>
+            <td>个人 5 犯、球队第 5 犯及之后需罚球、最后 1 分钟时必须在首屏提醒。</td>
+          </tr>
+          <tr>
+            <td>只读模式</td>
+            <td>观众与球员不应看到任何编辑、确认、撤销入口。</td>
+          </tr>
+          <tr>
+            <td>赛后签字</td>
+            <td>只要求双方队长签字，签字完成后才能生成正式留档。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="states">7. 关键状态与异常</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>状态 / 异常</th>
+            <th>页面表现</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>无效房间码</td>
+            <td>加入比赛页就地提示，不进入下一页。</td>
+          </tr>
+          <tr>
+            <td>观众进入</td>
+            <td>匿名只读进入比赛信息页，不出现登录阻塞。</td>
+          </tr>
+          <tr>
+            <td>同队号码重复</td>
+            <td>创建比赛页阻止提交，并定位到冲突字段。</td>
+          </tr>
+          <tr>
+            <td>AI 识别未通过</td>
+            <td>技术台页显示退回提示，不改变正式比分。</td>
+          </tr>
+          <tr>
+            <td>个人第 5 次犯规</td>
+            <td>技术台页出现高优先级提醒。</td>
+          </tr>
+          <tr>
+            <td>球队第 5 次及之后犯规</td>
+            <td>技术台页提示进入罚球状态。</td>
+          </tr>
+          <tr>
+            <td>比赛仅剩 1 分钟</td>
+            <td>技术台页出现倒计时提醒。</td>
+          </tr>
+          <tr>
+            <td>球员不存在</td>
+            <td>技术台页提示名单不匹配，不生成事件。</td>
+          </tr>
+          <tr>
+            <td>比赛结束后再次访问房间</td>
+            <td>提示房间已销毁。</td>
+          </tr>
+          <tr>
+            <td>签字后发现错误</td>
+            <td>进入更正版流程，不覆盖原留档。</td>
+          </tr>
+          <tr>
+            <td>网络断开</td>
+            <td>技术台页明确提示断网；首版不支持离线续记。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="acceptance">8. 页面验收标准</h2>
+      <ul>
+        <li>从首页到建赛、比赛中记录、赛后留档，主流程不超过 5 个核心页面。</li>
+        <li>技术员页首屏必须同时看见比分、时间、犯规、暂停、计时控制、输入区、确认区和规则提醒。</li>
+        <li>观众页必须是严格只读，不复用技术员操作控件。</li>
+        <li>所有关键状态都有明确反馈，不依赖用户猜测。</li>
+        <li>页面设计适合微信小程序竖屏使用，默认面向手机操作。</li>
+      </ul>
+
+      <h2 id="history">9. 版本记录</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>版本</th>
+            <th>日期</th>
+            <th>变更摘要</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>v0.1</td>
+            <td>2026-05-18</td>
+            <td>建立首版页面流程、角色模式、交互规则，并补充 5 张微信小程序效果图。</td>
+          </tr>
+          <tr>
+            <td>v0.2</td>
+            <td>2026-05-18</td>
+            <td>补充计时控制、暂停额度和规则提醒，并新增技术台提醒态效果图。</td>
+          </tr>
+          <tr>
+            <td>v0.3</td>
+            <td>2026-05-18</td>
+            <td>补充普通比赛态计时控制效果图，并明确暂停、继续和更正时间在首屏可见。</td>
+          </tr>
+          <tr>
+            <td>v0.4</td>
+            <td>2026-05-18</td>
+            <td>补充匿名只读、创建页高级信息和断网提示等首版实施决策。</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <aside class="comments-panel" id="commentsPanel">
+      <h2>批注</h2>
+      <p class="empty-comments" id="emptyComments">还没有批注。先选中文本，再点击“给选中文本加批注”。</p>
+      <div class="comment-list" id="commentList"></div>
+    </aside>
+  </div>
+
+  <script>
+    const documentContent = document.getElementById("documentContent");
+    const toggleEditButton = document.getElementById("toggleEdit");
+    const addCommentButton = document.getElementById("addComment");
+    const toggleCommentsButton = document.getElementById("toggleComments");
+    const exportAnnotatedHtmlButton = document.getElementById("exportAnnotatedHtml");
+    const exportCleanHtmlButton = document.getElementById("exportCleanHtml");
+    const commentsPanel = document.getElementById("commentsPanel");
+    const commentList = document.getElementById("commentList");
+    const emptyComments = document.getElementById("emptyComments");
+    const statusText = document.getElementById("statusText");
+    let commentsVisible = true;
+
+    function setStatus(text) {
+      statusText.textContent = text;
+    }
+
+    function nextCommentId() {
+      return `comment-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    }
+
+    function getAnchorById(id) {
+      return document.querySelector(`.comment-anchor[data-comment-id="${id}"]`);
+    }
+
+    function highlightComment(id) {
+      document.querySelectorAll(".comment-item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.commentId === id);
+      });
+    }
+
+    function bindAnchor(anchor) {
+      anchor.addEventListener("click", () => {
+        highlightComment(anchor.dataset.commentId);
+      });
+    }
+
+    function renderComments() {
+      const anchors = [...document.querySelectorAll(".comment-anchor")];
+      commentList.innerHTML = "";
+      emptyComments.style.display = anchors.length ? "none" : "block";
+
+      anchors.forEach((anchor, index) => {
+        const item = document.createElement("section");
+        item.className = "comment-item";
+        item.dataset.commentId = anchor.dataset.commentId;
+        item.innerHTML = `
+          <div class="comment-meta">批注 ${index + 1}</div>
+          <div class="comment-text"></div>
+          <div class="comment-actions">
+            <button type="button" data-action="locate">定位原文</button>
+            <button type="button" data-action="edit">修改批注</button>
+            <button type="button" data-action="delete">删除批注</button>
+          </div>
+        `;
+        item.querySelector(".comment-text").textContent = anchor.dataset.comment || "";
+        item.querySelector('[data-action="locate"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          highlightComment(anchor.dataset.commentId);
+        });
+        item.querySelector('[data-action="edit"]').addEventListener("click", () => {
+          const nextComment = window.prompt("修改批注内容：", anchor.dataset.comment || "");
+          if (!nextComment || !nextComment.trim()) {
+            return;
+          }
+          anchor.dataset.comment = nextComment.trim();
+          renderComments();
+          setStatus("已修改批注");
+        });
+        item.querySelector('[data-action="delete"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.replaceWith(document.createTextNode(target.textContent));
+          renderComments();
+          setStatus("已删除批注");
+        });
+        commentList.appendChild(item);
+      });
+    }
+
+    toggleEditButton.addEventListener("click", () => {
+      const isEditing = document.body.classList.toggle("editing");
+      documentContent.contentEditable = isEditing ? "true" : "false";
+      toggleEditButton.textContent = isEditing ? "退出编辑" : "开启编辑";
+      toggleEditButton.classList.toggle("is-active", isEditing);
+      setStatus(isEditing ? "当前为编辑模式，可直接修改正文" : "当前为阅读模式");
+    });
+
+    addCommentButton.addEventListener("click", () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        setStatus("请先在正文中选中一段文字");
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (!documentContent.contains(range.commonAncestorContainer)) {
+        setStatus("只能给正文内容添加批注");
+        return;
+      }
+
+      const comment = window.prompt("请输入批注内容：");
+      if (!comment || !comment.trim()) {
+        setStatus("未添加批注");
+        return;
+      }
+
+      const anchor = document.createElement("span");
+      anchor.className = "comment-anchor";
+      anchor.dataset.commentId = nextCommentId();
+      anchor.dataset.comment = comment.trim();
+
+      try {
+        range.surroundContents(anchor);
+      } catch (error) {
+        setStatus("所选内容跨越了多个结构块，请缩小选择范围后重试");
+        return;
+      }
+
+      selection.removeAllRanges();
+      bindAnchor(anchor);
+      renderComments();
+      setStatus("已添加批注");
+    });
+
+    toggleCommentsButton.addEventListener("click", () => {
+      commentsVisible = !commentsVisible;
+      commentsPanel.style.display = commentsVisible ? "block" : "none";
+      toggleCommentsButton.textContent = commentsVisible ? "隐藏批注" : "显示批注";
+    });
+
+    function buildExportDocument(removeComments) {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelector("body")?.classList.remove("editing");
+      const clonedContent = clone.querySelector("#documentContent");
+      if (clonedContent) {
+        clonedContent.setAttribute("contenteditable", "false");
+      }
+      const clonedToggleButton = clone.querySelector("#toggleEdit");
+      if (clonedToggleButton) {
+        clonedToggleButton.textContent = "开启编辑";
+        clonedToggleButton.classList.remove("is-active");
+      }
+      clone.querySelectorAll(".comment-item.is-active").forEach((item) => item.classList.remove("is-active"));
+      const status = clone.querySelector("#statusText");
+      if (status) {
+        status.textContent = "当前为阅读模式";
+      }
+      if (removeComments) {
+        clone.querySelectorAll(".comment-anchor").forEach((anchor) => {
+          anchor.replaceWith(document.createTextNode(anchor.textContent));
+        });
+        clone.querySelector("#commentList").innerHTML = "";
+        clone.querySelector("#emptyComments").style.display = "block";
+      }
+      return "<!doctype html>\n" + clone.outerHTML;
+    }
+
+    function downloadHtml(content, filename) {
+      const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    exportAnnotatedHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(false), "页面流程与交互原型说明_含批注.html");
+      setStatus("已导出含批注 HTML");
+    });
+
+    exportCleanHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(true), "页面流程与交互原型说明_清洁版.html");
+      setStatus("已导出清洁版 HTML");
+    });
+
+    document.querySelectorAll(".comment-anchor").forEach(bindAnchor);
+    renderComments();
+  </script>
+</body>
+</html>

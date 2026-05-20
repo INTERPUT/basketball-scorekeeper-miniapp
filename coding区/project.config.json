@@ -1,0 +1,16 @@
+{
+  "description": "篮球技术台自动化",
+  "compileType": "miniprogram",
+  "libVersion": "3.7.7",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "projectname": "basketball-table-automation",
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": false,
+    "urlCheck": false,
+    "compileHotReLoad": true
+  },
+  "appid": "wxea2e2cd6be13bf69"
+}

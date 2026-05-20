@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="panel">
+    <view class="section-title">基础信息</view>
+    <view class="field">
+      <text class="label">四位房间码</text>
+      <input class="input" type="number" maxlength="4" value="{{roomCode}}" bindinput="onRoomCodeInput" />
+    </view>
+    <view class="field">
+      <text class="label">单节时长（分钟）</text>
+      <input class="input" type="number" value="{{periodLengthMinutes}}" data-field="periodLengthMinutes" bindinput="onFieldInput" />
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">主队</view>
+    <view class="field">
+      <text class="label">球队名称</text>
+      <input class="input" value="{{homeTeamName}}" data-field="homeTeamName" bindinput="onFieldInput" />
+    </view>
+    <view class="field">
+      <text class="label">球衣颜色</text>
+      <input class="input" value="{{homeTeamColor}}" data-field="homeTeamColor" bindinput="onFieldInput" />
+    </view>
+    <view class="field">
+      <text class="label">球员名单</text>
+      <textarea class="textarea" value="{{homeRosterText}}" placeholder="示例：&#10;7 张三&#10;11 李四" data-field="homeRosterText" bindinput="onFieldInput" />
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">客队</view>
+    <view class="field">
+      <text class="label">球队名称</text>
+      <input class="input" value="{{awayTeamName}}" data-field="awayTeamName" bindinput="onFieldInput" />
+    </view>
+    <view class="field">
+      <text class="label">球衣颜色</text>
+      <input class="input" value="{{awayTeamColor}}" data-field="awayTeamColor" bindinput="onFieldInput" />
+    </view>
+    <view class="field">
+      <text class="label">球员名单</text>
+      <textarea class="textarea" value="{{awayRosterText}}" placeholder="示例：&#10;8 王五&#10;12 赵六" data-field="awayRosterText" bindinput="onFieldInput" />
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title" bindtap="toggleAdvanced">高级信息 {{showAdvanced ? "收起" : "展开"}}</view>
+    <view wx:if="{{showAdvanced}}">
+      <view class="field">
+        <text class="label">赛事名称</text>
+        <input class="input" value="{{competitionName}}" data-field="competitionName" bindinput="onFieldInput" />
+      </view>
+      <view class="field">
+        <text class="label">地点</text>
+        <input class="input" value="{{venue}}" data-field="venue" bindinput="onFieldInput" />
+      </view>
+      <view class="field">
+        <text class="label">裁判</text>
+        <input class="input" value="{{referee}}" data-field="referee" bindinput="onFieldInput" />
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <button class="primary" bindtap="handleSubmit">创建房间</button>
+</view>

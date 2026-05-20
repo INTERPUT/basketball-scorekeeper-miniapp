@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>篮球技术台自动化 - 事件字典与自然语言输入规范 v0.3</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --paper: #ffffff;
+      --ink: #16202a;
+      --muted: #667085;
+      --line: #d8dee8;
+      --accent: #0f766e;
+      --accent-soft: #edf7f5;
+      --warn: #b45309;
+      --warn-soft: #fff7ed;
+      --ok: #166534;
+      --ok-soft: #f0fdf4;
+      --info: #1d4ed8;
+      --info-soft: #eff6ff;
+      --comment: #fff3bf;
+      --comment-border: #e9b949;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    button.is-active {
+      color: #ffffff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .workspace {
+      width: min(1440px, calc(100% - 32px));
+      margin: 24px auto 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+
+    h1, h2, h3, h4 {
+      line-height: 1.3;
+      margin-top: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 21px;
+      margin-top: 30px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+
+    h4 {
+      font-size: 15px;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+
+    p, li, td, th {
+      font-size: 15px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .lead {
+      padding: 16px;
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+    }
+
+    .toc {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      margin-top: 18px;
+    }
+
+    .toc ul {
+      margin-bottom: 0;
+      columns: 2;
+    }
+
+    .toc a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .toc a:hover {
+      color: var(--accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--line);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+
+    .callout.ok {
+      border-left-color: var(--ok);
+      background: var(--ok-soft);
+    }
+
+    .callout.info {
+      border-left-color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .callout.warn {
+      border-left-color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tag.p0 {
+      color: var(--ok);
+      border-color: #bbf7d0;
+      background: var(--ok-soft);
+    }
+
+    .tag.rule {
+      color: var(--info);
+      border-color: #bfdbfe;
+      background: var(--info-soft);
+    }
+
+    .tag.future {
+      color: var(--warn);
+      border-color: #fed7aa;
+      background: var(--warn-soft);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      background: #f3f4f6;
+      padding: 1px 4px;
+    }
+
+    ul, ol {
+      padding-left: 20px;
+    }
+
+    .comment-anchor {
+      background: var(--comment);
+      border-bottom: 2px solid var(--comment-border);
+      cursor: pointer;
+    }
+
+    .comments-panel {
+      position: sticky;
+      top: 78px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .comments-panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .comment-item {
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #fffdf2;
+    }
+
+    .comment-item.is-active {
+      border-color: var(--comment-border);
+    }
+
+    .comment-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .comment-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .comment-actions button {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .empty-comments {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    [contenteditable="true"] {
+      outline: 2px dashed transparent;
+      outline-offset: 4px;
+    }
+
+    body.editing [contenteditable="true"] {
+      outline-color: rgba(15, 118, 110, 0.35);
+    }
+
+    @media (max-width: 960px) {
+      .workspace {
+        width: calc(100% - 16px);
+        margin: 12px auto 20px;
+        grid-template-columns: 1fr;
+      }
+
+      .comments-panel {
+        position: static;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .toc ul {
+        columns: 1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 23px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-group">
+      <button id="toggleEdit" type="button">开启编辑</button>
+      <button id="addComment" type="button">给选中文本加批注</button>
+      <button id="toggleComments" type="button">隐藏批注</button>
+      <button id="exportAnnotatedHtml" type="button">导出含批注 HTML</button>
+      <button id="exportCleanHtml" type="button">导出清洁版 HTML</button>
+    </div>
+    <div class="status" id="statusText">当前为阅读模式</div>
+  </header>
+
+  <div class="workspace">
+    <main id="documentContent" contenteditable="false">
+      <h1>事件字典与自然语言输入规范 v0.3</h1>
+      <p class="meta">产品：篮球技术台自动化 ｜ 日期：2026-05-18 ｜ 依据：产品文档模板 v0.7 ｜ 文档格式：可编辑 HTML</p>
+
+      <p class="lead">
+        本文档定义首版系统“认什么事件、如何理解自然语言、确认后改哪些数据、何时退回重填”。
+        它是 AI 解析、前端确认卡片、后端事件模型、导出逻辑和测试用例的共同基线。
+      </p>
+
+      <section class="toc">
+        <h2>目录</h2>
+        <ul>
+          <li><a href="#scope">1. 范围与原则</a></li>
+          <li><a href="#event-model">2. 标准事件模型</a></li>
+          <li><a href="#dictionary">3. 首版事件字典</a></li>
+          <li><a href="#language">4. 自然语言输入规范</a></li>
+          <li><a href="#ambiguity">5. 输入退回规则</a></li>
+          <li><a href="#correction">6. 更正与撤销规则</a></li>
+          <li><a href="#voice">7. 语音输入规范</a></li>
+          <li><a href="#unsupported">8. 暂不支持范围</a></li>
+          <li><a href="#examples">9. 示例解析</a></li>
+          <li><a href="#tests">10. 测试用例基线</a></li>
+          <li><a href="#history">11. 版本记录</a></li>
+        </ul>
+      </section>
+
+      <h2 id="scope">1. 范围与原则</h2>
+      <div class="callout ok">
+        <span class="tag p0">首版</span>
+        根据产品文档 v0.7，首版只覆盖正式计分表能力，不把篮板、助攻、抢断、盖帽、失误等扩展技术统计纳入 MVP。
+      </div>
+
+      <h3>1.1 首版纳入范围</h3>
+      <ul>
+        <li>得分事件：一分、两分、三分。</li>
+        <li>犯规事件：个人犯规、球队犯规自动累计；单节第 5 次及之后犯规触发罚球提醒。</li>
+        <li>暂停事件：球队暂停；上半场 2 次、下半场 3 次、每个加时 1 次。</li>
+        <li>比赛控制事件：启动计时、暂停计时、继续计时、更正当前时间、手动结束单节、结束比赛。</li>
+        <li>纠错事件：撤销上一条、修改指定事件、补录历史事件。</li>
+      </ul>
+
+      <h3>1.2 设计原则</h3>
+      <ul>
+        <li>AI 只生成标准事件草稿，不直接写入正式数据。</li>
+        <li>凡是会改变正式比分、犯规、暂停或历史记录的动作，都必须由技术员确认。</li>
+        <li>事件以“事件流”保存，导出结果由事件回放生成，不直接手改汇总值。</li>
+        <li>若自然语言缺少关键字段，系统直接退回，不进行对话式补问。</li>
+        <li>同一事件只落一次账；重复输入必须可识别并让技术员确认。</li>
+      </ul>
+
+      <h2 id="event-model">2. 标准事件模型</h2>
+      <h3>2.1 每条事件的基础字段</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>字段</th>
+            <th>是否必填</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>event_id</code></td>
+            <td>是</td>
+            <td>系统生成的唯一事件 ID。</td>
+          </tr>
+          <tr>
+            <td><code>event_type</code></td>
+            <td>是</td>
+            <td>标准事件类型，例如 <code>score</code>、<code>personal_foul</code>、<code>timeout</code>。</td>
+          </tr>
+          <tr>
+            <td><code>team_id</code></td>
+            <td>视事件而定</td>
+            <td>所属球队；得分、犯规、暂停必填。</td>
+          </tr>
+          <tr>
+            <td><code>player_id</code></td>
+            <td>视事件而定</td>
+            <td>球员相关事件必填；球队暂停可为空。</td>
+          </tr>
+          <tr>
+            <td><code>period</code></td>
+            <td>是</td>
+            <td>当前节次。</td>
+          </tr>
+          <tr>
+            <td><code>game_clock</code></td>
+            <td>是</td>
+            <td>事件发生时的比赛时间。</td>
+          </tr>
+          <tr>
+            <td><code>source_text</code></td>
+            <td>是</td>
+            <td>原始文本，若来自语音则保存转写结果。</td>
+          </tr>
+          <tr>
+            <td><code>source_mode</code></td>
+            <td>是</td>
+            <td><code>text</code> 或 <code>voice</code>。</td>
+          </tr>
+          <tr>
+            <td><code>status</code></td>
+            <td>是</td>
+            <td><code>draft</code>、<code>confirmed</code>、<code>corrected</code>、<code>reverted</code>。</td>
+          </tr>
+          <tr>
+            <td><code>created_by</code></td>
+            <td>是</td>
+            <td>首版通常为当前技术员。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2.2 标准输出建议</h3>
+      <pre><code>{
+  "event_type": "score",
+  "team": "白队",
+  "player_no": "7",
+  "score_value": 2,
+  "period": 1,
+  "game_clock": "08:21",
+  "data_effect": {
+    "team_score_delta": 2,
+    "player_score_delta": 2,
+    "append_running_score": true
+  },
+  "needs_confirmation": true,
+  "ambiguity": []
+}</code></pre>
+
+      <h2 id="dictionary">3. 首版事件字典</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>事件类型</th>
+            <th>标准代码</th>
+            <th>必填字段</th>
+            <th>确认后数据影响</th>
+            <th>示例说法</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>罚球命中</td>
+            <td><code>score_free_throw</code></td>
+            <td>球队、球员、节次、时间</td>
+            <td>球队 +1，球员 +1，新增逐分记录。</td>
+            <td><code>白队 7 号罚球命中</code></td>
+          </tr>
+          <tr>
+            <td>罚球组结果</td>
+            <td><code>free_throw_series_result</code></td>
+            <td>球队、球员、罚球次数、命中次数、节次、时间</td>
+            <td>按命中次数增加球队与球员得分；例如 <code>2罚中0</code> 记 0 分，<code>2罚中1</code> 记 1 分。</td>
+            <td><code>白队 7 号 2 罚中 0</code>、<code>白队 7 号 2 罚 0 中</code></td>
+          </tr>
+          <tr>
+            <td>两分命中</td>
+            <td><code>score_two_point</code></td>
+            <td>球队、球员、节次、时间</td>
+            <td>球队 +2，球员 +2，新增逐分记录。</td>
+            <td><code>白队 7 号两分命中</code></td>
+          </tr>
+          <tr>
+            <td>三分命中</td>
+            <td><code>score_three_point</code></td>
+            <td>球队、球员、节次、时间</td>
+            <td>球队 +3，球员 +3，新增逐分记录。</td>
+            <td><code>蓝队 12 号三分命中</code></td>
+          </tr>
+          <tr>
+            <td>个人犯规</td>
+            <td><code>personal_foul</code></td>
+            <td>球队、球员、节次、时间</td>
+            <td>球员犯规 +1；球队本节犯规 +1。若球员达到 5 犯，触发个人犯满提醒；若球队本节达到第 5 犯及之后，触发罚球提醒。</td>
+            <td><code>蓝队 12 号犯规一次</code></td>
+          </tr>
+          <tr>
+            <td>球队暂停</td>
+            <td><code>team_timeout</code></td>
+            <td>球队、节次、时间</td>
+            <td>按阶段扣减暂停：上半场总额 2 次、下半场总额 3 次、每个加时 1 次。</td>
+            <td><code>白队暂停</code></td>
+          </tr>
+          <tr>
+            <td>启动计时</td>
+            <td><code>clock_start</code></td>
+            <td>节次、时间</td>
+            <td>开始比赛计时。</td>
+            <td><code>开始计时</code></td>
+          </tr>
+          <tr>
+            <td>暂停计时</td>
+            <td><code>clock_pause</code></td>
+            <td>节次、时间</td>
+            <td>暂停比赛计时。</td>
+            <td><code>暂停计时</code></td>
+          </tr>
+          <tr>
+            <td>恢复计时</td>
+            <td><code>clock_resume</code></td>
+            <td>节次、时间</td>
+            <td>恢复比赛计时。</td>
+            <td><code>继续计时</code></td>
+          </tr>
+          <tr>
+            <td>更正当前时间</td>
+            <td><code>clock_correct</code></td>
+            <td>节次、目标时间</td>
+            <td>将当前比赛时间更正为指定值，并记录更正日志。</td>
+            <td><code>把时间改成 03:12</code></td>
+          </tr>
+          <tr>
+            <td>结束单节</td>
+            <td><code>period_end</code></td>
+            <td>节次、时间</td>
+            <td>锁定当前节比分，进入下一节准备状态。</td>
+            <td><code>结束本节比赛</code></td>
+          </tr>
+          <tr>
+            <td>结束比赛</td>
+            <td><code>game_end</code></td>
+            <td>节次、时间</td>
+            <td>锁定比赛结果，进入赛后签字和导出流程。</td>
+            <td><code>比赛结束</code></td>
+          </tr>
+          <tr>
+            <td>撤销上一条</td>
+            <td><code>revert_last_event</code></td>
+            <td>目标事件</td>
+            <td>回滚上一条已确认事件造成的数据影响。</td>
+            <td><code>撤销上一条</code></td>
+          </tr>
+          <tr>
+            <td>修改历史事件</td>
+            <td><code>correct_event</code></td>
+            <td>目标事件、修正内容</td>
+            <td>保留原事件，生成修正记录，并按新内容重算数据。</td>
+            <td><code>上一条改成白队 11 号两分命中</code></td>
+          </tr>
+          <tr>
+            <td>补录历史事件</td>
+            <td><code>backfill_event</code></td>
+            <td>球队、球员/事件对象、节次、时间、事件类型</td>
+            <td>按指定历史时间补入事件并重算相关汇总。</td>
+            <td><code>补记第一节 05:10 白队 7 号两分命中</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="language">4. 自然语言输入规范</h2>
+      <h3>4.1 推荐语序</h3>
+      <div class="callout info">
+        <span class="tag rule">推荐</span>
+        最稳定的表达顺序是：<code>球队 + 球员 + 事件</code>。例如：<code>白队 7 号两分命中</code>。
+      </div>
+
+      <h3>4.2 可接受表达</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>标准事件</th>
+            <th>可接受表达</th>
+            <th>归一化结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>两分命中</td>
+            <td><code>白队7号两分命中</code>、<code>白队7号进了个两分</code>、<code>白队7号两分</code></td>
+            <td><code>score_two_point</code></td>
+          </tr>
+          <tr>
+            <td>三分命中</td>
+            <td><code>蓝队12号三分命中</code>、<code>蓝队12号投进三分</code></td>
+            <td><code>score_three_point</code></td>
+          </tr>
+          <tr>
+            <td>罚球命中</td>
+            <td><code>白队7号罚球命中</code>、<code>白队7号罚进一个</code></td>
+            <td><code>score_free_throw</code></td>
+          </tr>
+          <tr>
+            <td>罚球组结果</td>
+            <td><code>白队7号2罚中0</code>、<code>白队7号2罚0中</code>、<code>白队7号2罚中1</code></td>
+            <td><code>free_throw_series_result</code></td>
+          </tr>
+          <tr>
+            <td>个人犯规</td>
+            <td><code>蓝队12号犯规一次</code>、<code>蓝队12号个人犯规</code></td>
+            <td><code>personal_foul</code></td>
+          </tr>
+          <tr>
+            <td>球队暂停</td>
+            <td><code>白队暂停</code>、<code>白队叫暂停</code></td>
+            <td><code>team_timeout</code></td>
+          </tr>
+          <tr>
+            <td>计时控制</td>
+            <td><code>开始计时</code>、<code>暂停计时</code>、<code>继续计时</code>、<code>把时间改成03:12</code>、<code>结束本节比赛</code></td>
+            <td><code>clock_start</code> / <code>clock_pause</code> / <code>clock_resume</code> / <code>clock_correct</code> / <code>period_end</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.3 必须明确的字段</h3>
+      <ul>
+        <li>得分事件必须明确：球队、球员、分值类型。</li>
+        <li>罚球组结果必须明确：球队、球员、罚球次数、命中次数。</li>
+        <li>个人犯规必须明确：球队、球员。</li>
+        <li>球队暂停必须明确：球队。</li>
+        <li>比赛进行中使用 <code>暂停计时</code>，暂停状态下使用 <code>继续计时</code>；<code>更正当前时间</code> 必须明确目标时间。</li>
+        <li>补录历史事件必须额外明确：节次、比赛时间。</li>
+        <li>修正历史事件必须明确：要改哪一条、改成什么。</li>
+      </ul>
+
+      <h3>4.4 系统可自动补充的字段</h3>
+      <ul>
+        <li>当前节次：若系统已知，可自动带入。</li>
+        <li>当前比赛时间：若为实时输入，可自动带入。</li>
+        <li>球队名称别名：若赛前已配置，例如“白队”对应“高一三班”。</li>
+      </ul>
+
+      <h2 id="ambiguity">5. 输入退回规则</h2>
+      <div class="callout info">
+        <span class="tag rule">统一规则</span>
+        技术台人员经过基础培训。若输入不是完整标准记录，系统统一返回：
+        <code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>用户输入</th>
+            <th>问题</th>
+            <th>系统处理</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>7 号得分</code></td>
+            <td>缺球队、缺分值</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>白队得分</code></td>
+            <td>缺球员、缺分值</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>蓝队犯规</code></td>
+            <td>缺球员</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>上一条改一下</code></td>
+            <td>缺修正内容</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>白队 7 号得分</code></td>
+            <td>缺分值</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>白队 7 号 2 罚</code></td>
+            <td>缺命中次数</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>暂停</code></td>
+            <td>缺球队，且可能与暂停计时混淆</td>
+            <td>返回：<code>缺少球队 / 球员 / 事件，请重新给出完整技术记录。</code></td>
+          </tr>
+          <tr>
+            <td><code>白队 7 号犯规</code>，但白队不存在 7 号</td>
+            <td>名单不匹配</td>
+            <td>提示未找到该球员，不生成正式事件。</td>
+          </tr>
+          <tr>
+            <td><code>蓝队 12 号犯规</code>，而 12 号已 5 犯</td>
+            <td>规则冲突</td>
+            <td>允许录入，但强提醒技术员确认是否为更正或误记。</td>
+          </tr>
+          <tr>
+            <td><code>白队暂停</code>，但该阶段暂停额度已用完</td>
+            <td>暂停额度不足</td>
+            <td>不生成正式事件，并提示该阶段已无可用暂停。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="correction">6. 更正与撤销规则</h2>
+      <h3>6.1 撤销</h3>
+      <ul>
+        <li><code>撤销上一条</code> 默认只作用于最近一条已确认事件。</li>
+        <li>撤销前必须展示将被撤销的事件摘要。</li>
+        <li>撤销后原事件状态改为 <code>reverted</code>，不能物理删除。</li>
+      </ul>
+
+      <h3>6.2 修改</h3>
+      <ul>
+        <li>修改不是覆盖原事件，而是保留原事件并新增一条修正记录。</li>
+        <li>系统应展示“原事件 → 新事件”的差异。</li>
+        <li>修改比分事件时，需要重算球队总分、球员得分、逐分记录和逐节比分。</li>
+      </ul>
+
+      <h3>6.3 补录</h3>
+      <ul>
+        <li>补录必须提供明确节次和时间。</li>
+        <li>补录后按事件时间插入历史时间线，并触发重新汇总。</li>
+        <li>若补录会影响已经签字的结果，必须生成新版本，不得覆盖旧版。</li>
+      </ul>
+
+      <h3>6.4 规则提醒</h3>
+      <ul>
+        <li>球员个人犯规达到 5 次时，生成 <code>player_foul_out_alert</code> 提醒。</li>
+        <li>球队单节累计 4 次犯规后，第 5 次及之后犯规生成 <code>team_bonus_alert</code> 提醒，提示需要罚球。</li>
+        <li>比赛剩余时间进入 01:00 时，生成 <code>last_minute_alert</code> 提醒。</li>
+      </ul>
+
+      <h2 id="voice">7. 语音输入规范</h2>
+      <div class="callout info">
+        <span class="tag rule">已定</span>
+        首版语音识别使用火山引擎。语音只负责转文本，事件理解仍走与文本输入相同的 AI 解析链路。
+      </div>
+      <ul>
+        <li>必须保留语音转写文本，让技术员在确认前可手动修改。</li>
+        <li>如果转写文本不完整或明显异常，不得直接生成已确认事件。</li>
+        <li>建议保留原始音频引用或识别结果元数据，便于问题排查。</li>
+        <li>语音输入失败时，应降级到文本输入，不阻断比赛记录。</li>
+      </ul>
+
+      <h2 id="unsupported">8. 暂不支持范围</h2>
+      <div class="grid">
+        <section class="box">
+          <h3>首版暂不纳入</h3>
+          <ul>
+            <li>篮板</li>
+            <li>助攻</li>
+            <li>抢断</li>
+            <li>盖帽</li>
+            <li>失误</li>
+            <li>投篮出手与命中率</li>
+          </ul>
+        </section>
+        <section class="box">
+          <h3>处理原则</h3>
+          <p>
+            若用户输入上述事件，系统应提示：
+            <code>首版暂不记录该类扩展技术统计。</code>
+            不应把它们误记成正式记分事件。
+          </p>
+        </section>
+      </div>
+
+      <h2 id="examples">9. 示例解析</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>原始输入</th>
+            <th>标准事件</th>
+            <th>系统动作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>白队 7 号两分命中</code></td>
+            <td><code>score_two_point</code></td>
+            <td>生成草稿：白队 +2，7 号 +2，新增逐分记录，等待确认。</td>
+          </tr>
+          <tr>
+            <td><code>白队 7 号 2 罚中 0</code></td>
+            <td><code>free_throw_series_result</code></td>
+            <td>生成草稿：罚球 2 次、命中 0 次、加 0 分，等待确认。</td>
+          </tr>
+          <tr>
+            <td><code>蓝队 12 号犯规一次</code></td>
+            <td><code>personal_foul</code></td>
+            <td>生成草稿：12 号个人犯规 +1，蓝队本节球队犯规 +1；若达到 5 犯或球队第 5 犯，附带提醒。</td>
+          </tr>
+          <tr>
+            <td><code>白队暂停</code></td>
+            <td><code>team_timeout</code></td>
+            <td>生成草稿：按当前阶段扣减暂停次数并记录暂停。</td>
+          </tr>
+          <tr>
+            <td><code>7 号得分</code></td>
+            <td>无法确定</td>
+            <td>返回标准退回提示，不生成事件。</td>
+          </tr>
+          <tr>
+            <td><code>上一条改成白队 11 号两分命中</code></td>
+            <td><code>correct_event</code></td>
+            <td>展示上一条原事件，并生成修正草稿等待确认。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="tests">10. 测试用例基线</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>测试类型</th>
+            <th>至少覆盖</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>正常解析</td>
+            <td>罚球命中、罚球组结果、两分、三分、个人犯规、球队暂停、计时控制。</td>
+          </tr>
+          <tr>
+            <td>同义表达</td>
+            <td><code>进了个两分</code>、<code>投进三分</code>、<code>叫暂停</code>、<code>2罚中0</code>、<code>2罚0中</code>。</td>
+          </tr>
+          <tr>
+            <td>非标准输入</td>
+            <td><code>7号得分</code>、<code>白队得分</code>、<code>暂停</code>。</td>
+          </tr>
+          <tr>
+            <td>规则冲突</td>
+            <td>不存在球员、重复犯规、重复得分、已结束比赛继续录入、暂停额度不足。</td>
+          </tr>
+          <tr>
+            <td>规则提醒</td>
+            <td>个人 5 犯、球队第 5 犯及之后需罚球、比赛剩余 1 分钟。</td>
+          </tr>
+          <tr>
+            <td>纠错能力</td>
+            <td>撤销上一条、修改上一条、补录历史事件。</td>
+          </tr>
+          <tr>
+            <td>语音链路</td>
+            <td>火山引擎转写成功、转写失败、转写后手动修正。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="history">11. 版本记录</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>版本</th>
+            <th>日期</th>
+            <th>变更摘要</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>v0.1</td>
+            <td>2026-05-18</td>
+            <td>基于产品文档 v0.4 建立首版事件字典、自然语言规范、输入退回和纠错规则。</td>
+          </tr>
+          <tr>
+            <td>v0.2</td>
+            <td>2026-05-18</td>
+            <td>补充计时控制、暂停阶段额度、球队第 5 犯罚球提醒、个人 5 犯提醒和最后 1 分钟提醒。</td>
+          </tr>
+          <tr>
+            <td>v0.3</td>
+            <td>2026-05-18</td>
+            <td>补充继续计时口径，并明确暂停、继续和更正时间在比赛中的标准输入要求。</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <aside class="comments-panel" id="commentsPanel">
+      <h2>批注</h2>
+      <p class="empty-comments" id="emptyComments">还没有批注。先选中文本，再点击“给选中文本加批注”。</p>
+      <div class="comment-list" id="commentList"></div>
+    </aside>
+  </div>
+
+  <script>
+    const documentContent = document.getElementById("documentContent");
+    const toggleEditButton = document.getElementById("toggleEdit");
+    const addCommentButton = document.getElementById("addComment");
+    const toggleCommentsButton = document.getElementById("toggleComments");
+    const exportAnnotatedHtmlButton = document.getElementById("exportAnnotatedHtml");
+    const exportCleanHtmlButton = document.getElementById("exportCleanHtml");
+    const commentsPanel = document.getElementById("commentsPanel");
+    const commentList = document.getElementById("commentList");
+    const emptyComments = document.getElementById("emptyComments");
+    const statusText = document.getElementById("statusText");
+    let commentsVisible = true;
+
+    function setStatus(text) {
+      statusText.textContent = text;
+    }
+
+    function nextCommentId() {
+      return `comment-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    }
+
+    function getAnchorById(id) {
+      return document.querySelector(`.comment-anchor[data-comment-id="${id}"]`);
+    }
+
+    function highlightComment(id) {
+      document.querySelectorAll(".comment-item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.commentId === id);
+      });
+    }
+
+    function bindAnchor(anchor) {
+      anchor.addEventListener("click", () => {
+        highlightComment(anchor.dataset.commentId);
+      });
+    }
+
+    function renderComments() {
+      const anchors = [...document.querySelectorAll(".comment-anchor")];
+      commentList.innerHTML = "";
+      emptyComments.style.display = anchors.length ? "none" : "block";
+
+      anchors.forEach((anchor, index) => {
+        const item = document.createElement("section");
+        item.className = "comment-item";
+        item.dataset.commentId = anchor.dataset.commentId;
+        item.innerHTML = `
+          <div class="comment-meta">批注 ${index + 1}</div>
+          <div class="comment-text"></div>
+          <div class="comment-actions">
+            <button type="button" data-action="locate">定位原文</button>
+            <button type="button" data-action="edit">修改批注</button>
+            <button type="button" data-action="delete">删除批注</button>
+          </div>
+        `;
+        item.querySelector(".comment-text").textContent = anchor.dataset.comment || "";
+        item.querySelector('[data-action="locate"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          highlightComment(anchor.dataset.commentId);
+        });
+        item.querySelector('[data-action="edit"]').addEventListener("click", () => {
+          const nextComment = window.prompt("修改批注内容：", anchor.dataset.comment || "");
+          if (!nextComment || !nextComment.trim()) {
+            return;
+          }
+          anchor.dataset.comment = nextComment.trim();
+          renderComments();
+          setStatus("已修改批注");
+        });
+        item.querySelector('[data-action="delete"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.replaceWith(document.createTextNode(target.textContent));
+          renderComments();
+          setStatus("已删除批注");
+        });
+        commentList.appendChild(item);
+      });
+    }
+
+    toggleEditButton.addEventListener("click", () => {
+      const isEditing = document.body.classList.toggle("editing");
+      documentContent.contentEditable = isEditing ? "true" : "false";
+      toggleEditButton.textContent = isEditing ? "退出编辑" : "开启编辑";
+      toggleEditButton.classList.toggle("is-active", isEditing);
+      setStatus(isEditing ? "当前为编辑模式，可直接修改正文" : "当前为阅读模式");
+    });
+
+    addCommentButton.addEventListener("click", () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        setStatus("请先在正文中选中一段文字");
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (!documentContent.contains(range.commonAncestorContainer)) {
+        setStatus("只能给正文内容添加批注");
+        return;
+      }
+
+      const comment = window.prompt("请输入批注内容：");
+      if (!comment || !comment.trim()) {
+        setStatus("未添加批注");
+        return;
+      }
+
+      const anchor = document.createElement("span");
+      anchor.className = "comment-anchor";
+      anchor.dataset.commentId = nextCommentId();
+      anchor.dataset.comment = comment.trim();
+
+      try {
+        range.surroundContents(anchor);
+      } catch (error) {
+        setStatus("所选内容跨越了多个结构块，请缩小选择范围后重试");
+        return;
+      }
+
+      selection.removeAllRanges();
+      bindAnchor(anchor);
+      renderComments();
+      setStatus("已添加批注");
+    });
+
+    toggleCommentsButton.addEventListener("click", () => {
+      commentsVisible = !commentsVisible;
+      commentsPanel.style.display = commentsVisible ? "block" : "none";
+      toggleCommentsButton.textContent = commentsVisible ? "隐藏批注" : "显示批注";
+    });
+
+    function buildExportDocument(removeComments) {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelector("body")?.classList.remove("editing");
+      const clonedContent = clone.querySelector("#documentContent");
+      if (clonedContent) {
+        clonedContent.setAttribute("contenteditable", "false");
+      }
+      const clonedToggleButton = clone.querySelector("#toggleEdit");
+      if (clonedToggleButton) {
+        clonedToggleButton.textContent = "开启编辑";
+        clonedToggleButton.classList.remove("is-active");
+      }
+      clone.querySelectorAll(".comment-item.is-active").forEach((item) => item.classList.remove("is-active"));
+      const status = clone.querySelector("#statusText");
+      if (status) {
+        status.textContent = "当前为阅读模式";
+      }
+      if (removeComments) {
+        clone.querySelectorAll(".comment-anchor").forEach((anchor) => {
+          anchor.replaceWith(document.createTextNode(anchor.textContent));
+        });
+        clone.querySelector("#commentList").innerHTML = "";
+        clone.querySelector("#emptyComments").style.display = "block";
+      }
+      return "<!doctype html>\n" + clone.outerHTML;
+    }
+
+    function downloadHtml(content, filename) {
+      const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    exportAnnotatedHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(false), "事件字典与自然语言输入规范_含批注.html");
+      setStatus("已导出含批注 HTML");
+    });
+
+    exportCleanHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(true), "事件字典与自然语言输入规范_清洁版.html");
+      setStatus("已导出清洁版 HTML");
+    });
+
+    document.querySelectorAll(".comment-anchor").forEach(bindAnchor);
+    renderComments();
+  </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+
+  <block wx:elif="{{snapshot}}">
+    <view class="panel">
+      <view class="tag">技术员模式</view>
+      <view class="section-title">比赛已创建</view>
+      <view class="score">{{snapshot.teams[0].score}} : {{snapshot.teams[1].score}}</view>
+      <view class="muted">第 {{snapshot.currentPeriod}} 节 · {{snapshot.clock.status}}</view>
+    </view>
+
+    <view class="panel stat-grid">
+      <view class="stat">
+        <view>{{snapshot.teams[0].name}}</view>
+        <view class="muted">{{snapshot.teams[0].playerCount}} 名球员</view>
+        <view class="muted">本节犯规 {{snapshot.teams[0].currentPeriodFouls}}</view>
+        <view class="muted">剩余暂停 {{snapshot.teams[0].timeoutsRemaining}}</view>
+      </view>
+      <view class="stat">
+        <view>{{snapshot.teams[1].name}}</view>
+        <view class="muted">{{snapshot.teams[1].playerCount}} 名球员</view>
+        <view class="muted">本节犯规 {{snapshot.teams[1].currentPeriodFouls}}</view>
+        <view class="muted">剩余暂停 {{snapshot.teams[1].timeoutsRemaining}}</view>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="section-title">自然语言录入</view>
+      <textarea class="textarea" value="{{inputText}}" placeholder="示例：白队 7 号两分命中" bindinput="onInputText" />
+      <view class="button-row">
+        <button class="secondary" wx:if="{{!recording}}" bindtap="handleStartRecord">语音</button>
+        <button class="secondary" wx:else bindtap="handleStopRecord">停止</button>
+        <button class="primary" bindtap="handleParse">解析</button>
+      </view>
+      <view wx:if="{{voiceBusy}}" class="muted">语音转写中...</view>
+      <view wx:if="{{error}}" class="error">{{error}}</view>
+    </view>
+
+    <view wx:if="{{draft}}" class="panel">
+      <view class="section-title">待确认事件</view>
+      <view>{{draft.eventType}}</view>
+      <view class="muted">{{draft.dataEffect}}</view>
+      <button class="primary" bindtap="handleConfirmDraft">确认</button>
+    </view>
+
+    <view wx:if="{{snapshot.alerts.length}}" class="panel">
+      <view class="section-title">规则提醒</view>
+      <view wx:for="{{snapshot.alerts}}" wx:key="alertId">{{item.type}}</view>
+    </view>
+
+    <view class="button-row">
+      <button class="secondary" bindtap="handlePreviewReadonly">查看观众页</button>
+      <button class="primary" wx:if="{{snapshot.status === 'finished'}}" bindtap="handleOpenArchive">赛后签字</button>
+    </view>
+  </block>
+</view>

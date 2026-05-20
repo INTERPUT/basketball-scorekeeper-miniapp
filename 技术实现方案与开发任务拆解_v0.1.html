@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>篮球技术台自动化 - 技术实现方案与开发任务拆解 v0.2</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --paper: #ffffff;
+      --ink: #16202a;
+      --muted: #667085;
+      --line: #d8dee8;
+      --accent: #0f766e;
+      --accent-soft: #edf7f5;
+      --warn: #b45309;
+      --warn-soft: #fff7ed;
+      --ok: #166534;
+      --ok-soft: #f0fdf4;
+      --info: #1d4ed8;
+      --info-soft: #eff6ff;
+      --comment: #fff3bf;
+      --comment-border: #e9b949;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    button.is-active {
+      color: #ffffff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .workspace {
+      width: min(1500px, calc(100% - 32px));
+      margin: 24px auto 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+
+    h1, h2, h3, h4 {
+      line-height: 1.3;
+      margin-top: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 21px;
+      margin-top: 30px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+
+    h4 {
+      font-size: 15px;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+
+    p, li, td, th {
+      font-size: 15px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .lead {
+      padding: 16px;
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+    }
+
+    .toc {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      margin-top: 18px;
+    }
+
+    .toc ul {
+      margin-bottom: 0;
+      columns: 2;
+    }
+
+    .toc a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .toc a:hover {
+      color: var(--accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--line);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+
+    .callout.ok {
+      border-left-color: var(--ok);
+      background: var(--ok-soft);
+    }
+
+    .callout.info {
+      border-left-color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .callout.warn {
+      border-left-color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tag.decided {
+      color: var(--ok);
+      border-color: #bbf7d0;
+      background: var(--ok-soft);
+    }
+
+    .tag.pending {
+      color: var(--warn);
+      border-color: #fed7aa;
+      background: var(--warn-soft);
+    }
+
+    .tag.recommended {
+      color: var(--info);
+      border-color: #bfdbfe;
+      background: var(--info-soft);
+    }
+
+    .tag.phase {
+      color: var(--muted);
+      background: #f8fafc;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      background: #f3f4f6;
+      padding: 1px 4px;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 14px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border: 1px solid #1e293b;
+      font-size: 14px;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+
+    ul, ol {
+      padding-left: 20px;
+    }
+
+    .comment-anchor {
+      background: var(--comment);
+      border-bottom: 2px solid var(--comment-border);
+      cursor: pointer;
+    }
+
+    .comments-panel {
+      position: sticky;
+      top: 78px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .comments-panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .comment-item {
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #fffdf2;
+    }
+
+    .comment-item.is-active {
+      border-color: var(--comment-border);
+    }
+
+    .comment-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .comment-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .comment-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .comment-actions button {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .empty-comments {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    [contenteditable="true"] {
+      outline: 2px dashed transparent;
+      outline-offset: 4px;
+    }
+
+    body.editing [contenteditable="true"] {
+      outline-color: rgba(15, 118, 110, 0.35);
+    }
+
+    @media (max-width: 960px) {
+      .workspace {
+        width: calc(100% - 16px);
+        margin: 12px auto 20px;
+        grid-template-columns: 1fr;
+      }
+
+      .comments-panel {
+        position: static;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .toc ul {
+        columns: 1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 23px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-group">
+      <button id="toggleEdit" type="button">开启编辑</button>
+      <button id="addComment" type="button">给选中文本加批注</button>
+      <button id="toggleComments" type="button">隐藏批注</button>
+      <button id="exportAnnotatedHtml" type="button">导出含批注 HTML</button>
+      <button id="exportCleanHtml" type="button">导出清洁版 HTML</button>
+    </div>
+    <div class="status" id="statusText">当前为阅读模式</div>
+  </header>
+
+  <div class="workspace">
+    <main id="documentContent" contenteditable="false">
+      <h1>技术实现方案与开发任务拆解 v0.2</h1>
+      <p class="meta">产品：篮球技术台自动化 ｜ 日期：2026-05-18 ｜ 依据：产品文档模板 v0.7、事件字典 v0.3、页面流程 v0.4 ｜ 文档格式：可编辑 HTML</p>
+
+      <p class="lead">
+        这份文档用于把前三份产品文档翻译成可直接进入编码阶段的技术基线。
+        它不替代产品文档，而是补上“技术路线怎么选、系统如何拆分、数据怎么落、接口怎么定、先写什么代码”。
+        当前文档已按首版建议方案定稿，可直接作为进入编码阶段的技术基线。后续若业务判断变化，再通过版本记录显式调整。
+      </p>
+
+      <section class="toc">
+        <h2>目录</h2>
+        <ul>
+          <li><a href="#purpose">1. 文档目的与边界</a></li>
+          <li><a href="#known">2. 已确定前提</a></li>
+          <li><a href="#decisions">3. 已确定的技术选择</a></li>
+          <li><a href="#baseline">4. 推荐的首版基线方案</a></li>
+          <li><a href="#architecture">5. 系统架构与模块边界</a></li>
+          <li><a href="#models">6. 核心数据模型</a></li>
+          <li><a href="#states">7. 状态机与关键业务规则</a></li>
+          <li><a href="#interfaces">8. 接口草案</a></li>
+          <li><a href="#frontend">9. 前端拆解</a></li>
+          <li><a href="#roadmap">10. 开发任务拆解</a></li>
+          <li><a href="#testing">11. 测试与验收</a></li>
+          <li><a href="#checklist">12. 开工前检查清单</a></li>
+          <li><a href="#open">13. 待你最终确认的问题</a></li>
+          <li><a href="#history">14. 版本记录</a></li>
+        </ul>
+      </section>
+
+      <h2 id="purpose">1. 文档目的与边界</h2>
+      <div class="grid">
+        <section class="box">
+          <h3>这份文档解决什么</h3>
+          <ul>
+            <li>把产品规则变成工程上可实现的模块、对象和接口。</li>
+            <li>让 AI 进入编码时有稳定边界，减少边写边猜。</li>
+            <li>提前暴露技术取舍，避免写到一半推翻架构。</li>
+            <li>给出首版最合理的开发顺序，先把最难返工的骨架定住。</li>
+          </ul>
+        </section>
+        <section class="box">
+          <h3>这份文档暂不解决什么</h3>
+          <ul>
+            <li>不写最终 UI 视觉规范，页面原型仍以第三份文档为准。</li>
+            <li>不指定最终大模型供应商，先定义统一适配层。</li>
+            <li>不展开第二阶段和第三阶段功能。</li>
+            <li>不把尚未确认的技术选择伪装成已定结论。</li>
+          </ul>
+        </section>
+      </div>
+
+      <h2 id="known">2. 已确定前提</h2>
+      <div class="callout ok">
+        <span class="tag decided">已定</span>
+        以下内容来自前三份文档，开发时应直接视为当前产品事实。
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>类别</th>
+            <th>当前结论</th>
+            <th>对实现的影响</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>产品平台</td>
+            <td>微信小程序。</td>
+            <td>首版优先适配微信生态和竖屏手机交互。</td>
+          </tr>
+          <tr>
+            <td>目标场景</td>
+            <td>学校班赛，首版单人技术员操作。</td>
+            <td>主界面必须一屏完成高频任务，默认不做多人协作。</td>
+          </tr>
+          <tr>
+            <td>输入方式</td>
+            <td>文本输入 + 语音输入；语音识别由火山引擎提供。</td>
+            <td>语音只做转写，后续统一进入同一 AI 解析链路。</td>
+          </tr>
+          <tr>
+            <td>房间</td>
+            <td>创建时设置四位房间码，比赛结束后房间销毁。</td>
+            <td>实时访问依赖房间码，归档数据必须与房间生命周期解耦。</td>
+          </tr>
+          <tr>
+            <td>首版正式记分</td>
+            <td>得分、个人犯规、球队犯规、暂停、逐节比分、逐分记录、比赛计时控制、最终比分。</td>
+            <td>事件流是核心，汇总结果由事件回放生成。</td>
+          </tr>
+          <tr>
+            <td>计时控制</td>
+            <td>启动、暂停、继续、更正时间、手动结束本节。</td>
+            <td>时钟必须有明确状态机，不能只做前端倒计时。</td>
+          </tr>
+          <tr>
+            <td>暂停规则</td>
+            <td>上半场 2 次、下半场 3 次、每个加时 1 次。</td>
+            <td>暂停额度按阶段扣减，不按单节独立重置。</td>
+          </tr>
+          <tr>
+            <td>犯规提醒</td>
+            <td>个人 5 犯提醒；球队单节累计 4 次后，第 5 次及之后犯规提示需要罚球；最后 1 分钟提醒。</td>
+            <td>提醒是业务规则产物，应由后端规则层统一生成。</td>
+          </tr>
+          <tr>
+            <td>赛后</td>
+            <td>双方队长签字；生成 PDF、正式记分表和结构化数据。</td>
+            <td>签字后形成归档版本，更正应生成新版本而不是覆盖旧版。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="decisions">3. 已确定的技术选择</h2>
+      <div class="callout ok">
+        <span class="tag decided">已定</span>
+        以下技术选择已经按首版建议方案确定，后续编码默认以此为准。
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>决策项</th>
+            <th>可选方案</th>
+            <th>最终决定</th>
+            <th>理由与代价</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>前端实现方式</td>
+            <td>A. 原生微信小程序<br>B. Taro<br>C. uni-app</td>
+            <td><span class="tag decided">已定</span> 原生微信小程序 + TypeScript</td>
+            <td>首版只做微信，原生方案层级最少，调用录音、登录、分享和小程序能力最直接。代价是未来若做多端，需要另做迁移。</td>
+          </tr>
+          <tr>
+            <td>后端承载</td>
+            <td>A. 微信云开发<br>B. 自建 Node.js 服务<br>C. 混合：云开发承载实时数据，自建服务承载导出与 AI</td>
+            <td><span class="tag decided">已定</span> 首版使用微信云开发</td>
+            <td>创建房间、实时同步、云数据库、云存储都能快速落地，适合先验证产品。若你已经确定后续要做多端和复杂后台，再考虑 B 或 C。</td>
+          </tr>
+          <tr>
+            <td>数据存储</td>
+            <td>A. 云数据库文档模型<br>B. PostgreSQL</td>
+            <td><span class="tag decided">已定</span> 使用云数据库文档模型</td>
+            <td>事件流和比赛快照都适合文档模型，首版数据量也不大。若采用自建后端，则建议 PostgreSQL。</td>
+          </tr>
+          <tr>
+            <td>实时同步</td>
+            <td>A. 云数据库实时监听<br>B. WebSocket<br>C. 轮询</td>
+            <td><span class="tag decided">已定</span> 使用云数据库实时监听</td>
+            <td>能减少后端代码和连接维护。若后端自建，则改用 WebSocket。轮询不建议作为主方案。</td>
+          </tr>
+          <tr>
+            <td>AI 解析接入</td>
+            <td>A. 直接绑定单一模型<br>B. 服务端适配层，底层模型可替换</td>
+            <td><span class="tag decided">已定</span> 服务端适配层</td>
+            <td>自然语言解析是核心能力，但供应商未必一次选定。先固定输入输出 JSON 结构，让底层模型可替换，后续代价最低。</td>
+          </tr>
+          <tr>
+            <td>时钟权威来源</td>
+            <td>A. 前端本地倒计时<br>B. 服务端记录时钟状态和基准时间，前端只负责展示</td>
+            <td><span class="tag decided">已定</span> 服务端权威</td>
+            <td>可避免观众端、技术台端和导出结果出现时间不一致。代价是需要认真设计时钟状态机。</td>
+          </tr>
+          <tr>
+            <td>正式记分表导出</td>
+            <td>A. HTML 模板渲染后生成 PDF<br>B. 直接绘制 PDF<br>C. 只导出简版报告</td>
+            <td><span class="tag decided">已定</span> HTML 模板 + PDF</td>
+            <td>与你当前“技术文档用 HTML”的习惯一致，预览和迭代快。若后续要求像素级完全复刻，再单独优化模板或转为精细绘制。</td>
+          </tr>
+          <tr>
+            <td>观众身份</td>
+            <td>A. 观众也必须登录<br>B. 观众匿名输入房间码即可查看</td>
+            <td><span class="tag decided">已定</span> 观众匿名只读</td>
+            <td>符合低门槛目标。编辑权限仍由技术员侧身份控制，不因观众匿名而放松写权限。</td>
+          </tr>
+          <tr>
+            <td>技术员身份</td>
+            <td>A. 完全匿名<br>B. 基于微信身份自动识别创建者为 operator</td>
+            <td><span class="tag decided">已定</span> 自动识别创建者为 operator</td>
+            <td>不增加明显操作负担，同时能防止其他人误改比赛。可通过微信登录态 / openid 实现。</td>
+          </tr>
+          <tr>
+            <td>离线能力</td>
+            <td>A. 首版不做离线继续记分，只做断网提示<br>B. 首版支持离线事件队列，恢复后补传</td>
+            <td><span class="tag decided">已定</span> 首版不做离线续记，只做断网提示</td>
+            <td>离线同步会显著提高复杂度，尤其涉及事件顺序和冲突合并。建议先保证在线场景正确，再按真实使用反馈决定是否补做。</td>
+          </tr>
+          <tr>
+            <td>表头信息录入</td>
+            <td>A. 创建比赛时只填最少字段<br>B. 创建比赛时可展开填写赛事名称、地点、裁判等正式表头字段</td>
+            <td><span class="tag decided">已定</span> 采用“基础信息 + 可折叠高级信息”</td>
+            <td>正式记分表导出需要这些字段，但不应阻塞普通班赛快速开局。</td>
+          </tr>
+          <tr>
+            <td>归档保留</td>
+            <td>A. 房间销毁后仅保留导出文件<br>B. 房间销毁后保留完整结构化归档与导出文件</td>
+            <td><span class="tag decided">已定</span> 保留完整结构化归档与导出文件</td>
+            <td>后续更正、复盘、重新导出都依赖原始事件流。需要区分“房间失效”和“比赛数据删除”。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="baseline">4. 已确定的首版基线方案</h2>
+      <div class="callout ok">
+        <span class="tag decided">已定</span>
+        首版开发直接按下面这套组合执行。
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>层级</th>
+            <th>建议方案</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>客户端</td>
+            <td>原生微信小程序 + TypeScript</td>
+            <td>首版直接围绕微信能力开发。</td>
+          </tr>
+          <tr>
+            <td>后端</td>
+            <td>微信云开发：云函数、云数据库、云存储</td>
+            <td>降低部署和实时同步成本。</td>
+          </tr>
+          <tr>
+            <td>实时同步</td>
+            <td>云数据库监听比赛快照</td>
+            <td>技术台确认事件后，观众页实时刷新。</td>
+          </tr>
+          <tr>
+            <td>自然语言解析</td>
+            <td>云函数中的 AI 适配层，输出固定 JSON Schema</td>
+            <td>屏蔽底层模型差异，先把系统契约定稳。</td>
+          </tr>
+          <tr>
+            <td>语音识别</td>
+            <td>火山引擎 ASR</td>
+            <td>音频先转文字，再复用文本解析链路。</td>
+          </tr>
+          <tr>
+            <td>导出</td>
+            <td>服务端 HTML 模板渲染 + PDF 输出 + 云存储保存</td>
+            <td>兼顾预览、签字叠加和后续模板调整。</td>
+          </tr>
+          <tr>
+            <td>核心设计原则</td>
+            <td>事件流 + 派生快照</td>
+            <td>所有正式数据都从已确认事件回放得到，不直接手改总分。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.1 如果你选择自建后端</h3>
+      <p>若你更看重长期扩展、未来要做多端或后台，建议改成以下组合：</p>
+      <ul>
+        <li>原生微信小程序前端。</li>
+        <li>Node.js 后端。</li>
+        <li>PostgreSQL 保存正式数据。</li>
+        <li>Redis / WebSocket 承担实时连接和推送。</li>
+        <li>对象存储保存签名和导出文件。</li>
+      </ul>
+      <p>这套方案更强，但首版搭建、部署、运维和 AI 写代码时的复杂度都会明显上升。</p>
+
+      <h2 id="architecture">5. 系统架构与模块边界</h2>
+      <h3>5.1 逻辑分层</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>层级</th>
+            <th>负责什么</th>
+            <th>不负责什么</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>小程序前端</td>
+            <td>页面展示、输入收集、语音录制、草稿确认、只读观众页。</td>
+            <td>不自行裁决正式规则，不单独计算最终事实来源。</td>
+          </tr>
+          <tr>
+            <td>业务服务层</td>
+            <td>创建比赛、权限、事件确认、计时状态流转、规则提醒、导出任务。</td>
+            <td>不依赖页面形态，不把 UI 文案硬编码进规则核心。</td>
+          </tr>
+          <tr>
+            <td>AI 适配层</td>
+            <td>把输入文本解析成标准事件草稿 JSON。</td>
+            <td>不直接修改正式比赛数据。</td>
+          </tr>
+          <tr>
+            <td>规则引擎</td>
+            <td>根据已确认事件计算比分、犯规、暂停、提醒和比赛快照。</td>
+            <td>不读取自然语言原文来猜业务含义。</td>
+          </tr>
+          <tr>
+            <td>存储层</td>
+            <td>保存比赛实体、事件流、快照、签名、导出文件。</td>
+            <td>不把临时房间状态和长期归档混成一个概念。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.2 关键调用链</h3>
+      <ol>
+        <li>技术员输入文本或录音。</li>
+        <li>若为语音，先由火山引擎转写为文本。</li>
+        <li>AI 适配层把文本解析成标准事件草稿。</li>
+        <li>前端展示草稿卡片和数据影响。</li>
+        <li>技术员点击确认。</li>
+        <li>业务层写入正式事件，规则引擎重算快照与提醒。</li>
+        <li>技术台与观众页订阅到新的比赛快照。</li>
+      </ol>
+
+      <h2 id="models">6. 核心数据模型</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>对象</th>
+            <th>核心字段</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Match</code></td>
+            <td><code>match_id</code>、标题、日期、地点、状态、当前节次、规则配置、创建者</td>
+            <td>整场比赛的主对象，归档后仍长期存在。</td>
+          </tr>
+          <tr>
+            <td><code>Room</code></td>
+            <td><code>room_code</code>、<code>match_id</code>、状态、创建时间、失效时间</td>
+            <td>只用于进入实时比赛；比赛结束后失效。</td>
+          </tr>
+          <tr>
+            <td><code>Team</code></td>
+            <td><code>team_id</code>、名称、颜色、暂停额度</td>
+            <td>每场比赛下固定两支球队。</td>
+          </tr>
+          <tr>
+            <td><code>Player</code></td>
+            <td><code>player_id</code>、<code>team_id</code>、号码、姓名、个人犯规、得分</td>
+            <td>号码在同队内唯一。</td>
+          </tr>
+          <tr>
+            <td><code>ClockState</code></td>
+            <td>当前节次、状态、剩余时间、最近启动时间、最近暂停时间、修正记录</td>
+            <td>服务端权威时钟，前端根据它显示倒计时。</td>
+          </tr>
+          <tr>
+            <td><code>Event</code></td>
+            <td><code>event_id</code>、类型、球队、球员、节次、比赛时间、来源、状态、数据影响</td>
+            <td>正式事实源。比分、犯规、逐分记录都由它回放。</td>
+          </tr>
+          <tr>
+            <td><code>DraftEvent</code></td>
+            <td>原始文本、解析结果、置信说明、待确认数据影响</td>
+            <td>AI 结果先落草稿，确认后才转为正式事件。</td>
+          </tr>
+          <tr>
+            <td><code>Alert</code></td>
+            <td>类型、触发原因、节次、时间、已读状态、关联事件</td>
+            <td>个人 5 犯、球队罚球、最后 1 分钟等提醒。</td>
+          </tr>
+          <tr>
+            <td><code>Signature</code></td>
+            <td>签字人角色、签名图片、时间、版本号</td>
+            <td>首版只需要双方队长签字。</td>
+          </tr>
+          <tr>
+            <td><code>ExportJob</code></td>
+            <td>导出类型、输入版本、文件地址、生成状态</td>
+            <td>保存 PDF、正式表格和结构化数据的生成结果。</td>
+          </tr>
+          <tr>
+            <td><code>MatchSnapshot</code></td>
+            <td>比分、逐节比分、球队犯规、暂停、提醒、最近事件</td>
+            <td>前端高频读取的派生快照，便于实时展示。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>6.1 建议的数据原则</h3>
+      <ul>
+        <li><code>Event</code> 是事实源，<code>MatchSnapshot</code> 是派生结果。</li>
+        <li>房间销毁不等于比赛数据删除；<code>Room</code> 失效，<code>Match</code> 归档保留。</li>
+        <li>撤销和修正不物理删除事件，而是新增状态或新增修正事件。</li>
+        <li>正式导出绑定某个归档版本，便于后续追溯。</li>
+      </ul>
+
+      <h2 id="states">7. 状态机与关键业务规则</h2>
+      <h3>7.1 比赛状态</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>状态</th>
+            <th>进入条件</th>
+            <th>可执行动作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>draft</code></td>
+            <td>比赛创建后，尚未开始。</td>
+            <td>编辑基础信息、阵容、房间码。</td>
+          </tr>
+          <tr>
+            <td><code>live</code></td>
+            <td>首节启动计时后。</td>
+            <td>录入事件、暂停/继续/更正时间、结束本节。</td>
+          </tr>
+          <tr>
+            <td><code>period_break</code></td>
+            <td>某节结束，下一节尚未开始。</td>
+            <td>核对、开始下一节、必要时修正。</td>
+          </tr>
+          <tr>
+            <td><code>finished</code></td>
+            <td>比赛结束。</td>
+            <td>进入签字和导出，不再接受普通赛中事件。</td>
+          </tr>
+          <tr>
+            <td><code>archived</code></td>
+            <td>签字完成并生成留档。</td>
+            <td>只读查看；若需改动，创建新版本。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>7.2 时钟状态</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>状态</th>
+            <th>说明</th>
+            <th>允许操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ready</code></td>
+            <td>开节前。</td>
+            <td><code>start</code></td>
+          </tr>
+          <tr>
+            <td><code>running</code></td>
+            <td>计时进行中。</td>
+            <td><code>pause</code>、<code>correct</code>、<code>end_period</code></td>
+          </tr>
+          <tr>
+            <td><code>paused</code></td>
+            <td>计时已暂停。</td>
+            <td><code>resume</code>、<code>correct</code>、<code>end_period</code></td>
+          </tr>
+          <tr>
+            <td><code>period_ended</code></td>
+            <td>本节已结束。</td>
+            <td>开始下一节或结束比赛。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>7.3 规则必须由服务端统一执行</h3>
+      <ul>
+        <li>球队单节第 5 次及之后犯规触发罚球提醒。</li>
+        <li>球员个人犯规达到 5 次触发提醒。</li>
+        <li>比赛剩余时间进入 <code>01:00</code> 触发最后 1 分钟提醒。</li>
+        <li>暂停额度按上半场、下半场、加时分别校验。</li>
+        <li>已归档比赛禁止继续写入普通正式事件。</li>
+      </ul>
+
+      <h2 id="interfaces">8. 接口草案</h2>
+      <p>若使用微信云开发，可把下列接口理解为云函数；若使用自建后端，可把它们实现为 REST / RPC。关键是语义先固定。</p>
+      <table>
+        <thead>
+          <tr>
+            <th>接口 / 函数</th>
+            <th>用途</th>
+            <th>关键输入</th>
+            <th>关键输出</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>createMatch</code></td>
+            <td>创建比赛和房间。</td>
+            <td>基础信息、球队、球员、规则、四位房间码</td>
+            <td><code>match_id</code>、<code>room_code</code></td>
+          </tr>
+          <tr>
+            <td><code>joinRoom</code></td>
+            <td>观众按房间码进入。</td>
+            <td><code>room_code</code></td>
+            <td>可读的比赛快照</td>
+          </tr>
+          <tr>
+            <td><code>parseEvent</code></td>
+            <td>把文本转为事件草稿。</td>
+            <td>原始文本、当前比赛上下文</td>
+            <td>标准事件草稿、数据影响、退回原因</td>
+          </tr>
+          <tr>
+            <td><code>confirmEvent</code></td>
+            <td>确认事件并写入正式流。</td>
+            <td><code>draft_event_id</code></td>
+            <td>正式事件、最新快照、提醒</td>
+          </tr>
+          <tr>
+            <td><code>revertEvent</code></td>
+            <td>撤销事件。</td>
+            <td><code>event_id</code></td>
+            <td>最新快照</td>
+          </tr>
+          <tr>
+            <td><code>correctEvent</code></td>
+            <td>更正历史事件。</td>
+            <td>原事件、修正内容</td>
+            <td>新版本事件流和最新快照</td>
+          </tr>
+          <tr>
+            <td><code>controlClock</code></td>
+            <td>启动、暂停、继续、更正、结束本节。</td>
+            <td>动作类型、目标时间</td>
+            <td>最新时钟状态</td>
+          </tr>
+          <tr>
+            <td><code>finishMatch</code></td>
+            <td>结束比赛。</td>
+            <td><code>match_id</code></td>
+            <td>赛后快照</td>
+          </tr>
+          <tr>
+            <td><code>submitSignature</code></td>
+            <td>保存队长签字。</td>
+            <td>队长角色、签名数据</td>
+            <td>签字记录</td>
+          </tr>
+          <tr>
+            <td><code>generateExports</code></td>
+            <td>生成 PDF、正式记分表和结构化数据。</td>
+            <td>比赛归档版本</td>
+            <td>文件地址和导出状态</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="frontend">9. 前端拆解</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>页面</th>
+            <th>主要组件</th>
+            <th>首版注意点</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>加入比赛页</td>
+            <td>房间码输入、进入按钮、创建比赛入口</td>
+            <td>四位数字校验，观众路径尽量短。</td>
+          </tr>
+          <tr>
+            <td>创建比赛页</td>
+            <td>球队设置、球员列表、单节时长、可折叠高级信息</td>
+            <td>同队号码不可重复；首版不做导入。</td>
+          </tr>
+          <tr>
+            <td>技术台页</td>
+            <td>比分头部、计时控制、状态卡、输入区、AI 草稿卡、逐分记录、提醒区</td>
+            <td>所有高频操作首屏可见；普通比赛态也要显示计时控制。</td>
+          </tr>
+          <tr>
+            <td>比赛信息页</td>
+            <td>只读比分、犯规、暂停、逐分记录</td>
+            <td>与技术台同源，但移除所有写入口。</td>
+          </tr>
+          <tr>
+            <td>赛后确认页</td>
+            <td>最终比分、逐节比分、签名板、导出入口</td>
+            <td>双方签字完成前不得生成最终留档。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="roadmap">10. 开发任务拆解</h2>
+      <div class="callout info">
+        <span class="tag recommended">建议顺序</span>
+        先把确定性最强、返工成本最高的底层写稳，再接 AI 和语音。不要一开始就先做“能聊天”的表面层。
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>阶段</th>
+            <th>目标</th>
+            <th>主要交付物</th>
+            <th>完成标准</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag phase">阶段 0</span> 工程初始化</td>
+            <td>搭好仓库、环境、代码规范。</td>
+            <td>小程序工程、云开发环境、基础 CI、测试框架。</td>
+            <td>能本地启动，能部署测试环境。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 1</span> 比赛骨架</td>
+            <td>先跑通建赛、房间、球队、球员。</td>
+            <td><code>Match</code>、<code>Room</code>、<code>Team</code>、<code>Player</code> 模型；加入比赛页；创建比赛页。</td>
+            <td>技术员可创建比赛，观众可用房间码进入只读页。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 2</span> 规则核心</td>
+            <td>先不接 AI，直接用确定性按钮或测试脚本验证业务规则。</td>
+            <td>事件流、快照重算、计时状态机、暂停额度、犯规提醒。</td>
+            <td>不用 AI 也能完整跑完一场模拟比赛。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 3</span> 文本 AI 录入</td>
+            <td>接入自然语言解析和确认卡片。</td>
+            <td><code>parseEvent</code>、AI 适配层、草稿卡、退回重填。</td>
+            <td>事件字典中的核心样例都能稳定落成草稿。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 4</span> 实时同步</td>
+            <td>把技术台和观众页接起来。</td>
+            <td>比赛快照订阅、观众页、提醒可视化。</td>
+            <td>技术台确认后，观众页同步刷新。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 5</span> 语音输入</td>
+            <td>接火山引擎语音识别。</td>
+            <td>录音、上传、转写、转写文本修改入口。</td>
+            <td>语音可复用文本链路，不产生第二套规则。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 6</span> 赛后归档</td>
+            <td>完成签字和导出。</td>
+            <td>签名板、归档版本、HTML 模板、PDF 导出、结构化数据导出。</td>
+            <td>能生成带签字的留底文件，且与事件流一致。</td>
+          </tr>
+          <tr>
+            <td><span class="tag phase">阶段 7</span> 稳定性收尾</td>
+            <td>处理异常、权限、回归测试。</td>
+            <td>错误提示、房间失效、修正流程、日志、验收脚本。</td>
+            <td>满足前三份文档中的验收标准。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="testing">11. 测试与验收</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>测试层级</th>
+            <th>至少覆盖</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>单元测试</td>
+            <td>得分累计、逐节比分、个人犯规、球队犯规、暂停额度、最后 1 分钟提醒、时钟状态流转。</td>
+          </tr>
+          <tr>
+            <td>事件回放测试</td>
+            <td>撤销、修正、补录后，快照重算正确。</td>
+          </tr>
+          <tr>
+            <td>AI 解析测试</td>
+            <td>事件字典 v0.3 中全部标准样例、同义表达和退回样例。</td>
+          </tr>
+          <tr>
+            <td>接口测试</td>
+            <td>创建房间、加入、确认事件、控制时钟、签字、导出。</td>
+          </tr>
+          <tr>
+            <td>端到端测试</td>
+            <td>从创建比赛到赛后导出的完整一场模拟比赛。</td>
+          </tr>
+          <tr>
+            <td>导出核对</td>
+            <td>导出正式计分表字段与比赛快照、事件流一致。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="checklist">12. 开工前检查清单</h2>
+      <ul>
+        <li>前端、后端、实时同步和导出路线已经按首版方案定稿。</li>
+        <li>正式记分表导出按“尽量贴近当前参考表版式”执行。</li>
+        <li>创建比赛页需要收集赛事名称、地点、裁判等正式表头字段，但放入可折叠高级信息。</li>
+        <li>首版不做离线续记，只提供断网提示。</li>
+        <li>房间销毁后仍保留完整结构化归档。</li>
+        <li>技术员通过微信身份自动成为唯一 operator。</li>
+        <li>是否准备好火山引擎语音识别账号、调用凭据和回调限制。</li>
+        <li>是否准备好首批 AI 解析测试样例和至少一场完整模拟比赛数据。</li>
+      </ul>
+
+      <h2 id="open">13. 后续可再评估的问题</h2>
+      <div class="callout info">
+        <span class="tag decided">当前无阻塞项</span>
+        现阶段已经可以进入编码。以下内容不阻塞首版启动，可在真实开发或试用后再评估。
+      </div>
+      <ul>
+        <li>后续是否从微信云开发迁移到自建后端。</li>
+        <li>后续是否增加离线续记能力。</li>
+        <li>后续是否把正式记分表做到像素级 1:1 复刻。</li>
+        <li>后续是否固定某一家 AI 供应商，而不再保留可替换适配层。</li>
+      </ul>
+
+      <h2 id="history">14. 版本记录</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>版本</th>
+            <th>日期</th>
+            <th>变更摘要</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>v0.1</td>
+            <td>2026-05-18</td>
+            <td>基于产品文档 v0.6、事件字典 v0.3、页面流程 v0.3，建立首版技术实现方案、核心数据模型、接口草案和开发任务拆解。</td>
+          </tr>
+          <tr>
+            <td>v0.2</td>
+            <td>2026-05-18</td>
+            <td>按建议方案完成首版技术决策定稿，并同步到产品文档 v0.7 与页面流程 v0.4，可直接进入编码阶段。</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <aside class="comments-panel" id="commentsPanel">
+      <h2>批注</h2>
+      <p class="empty-comments" id="emptyComments">还没有批注。先选中文本，再点击“给选中文本加批注”。</p>
+      <div class="comment-list" id="commentList"></div>
+    </aside>
+  </div>
+
+  <script>
+    const documentContent = document.getElementById("documentContent");
+    const toggleEditButton = document.getElementById("toggleEdit");
+    const addCommentButton = document.getElementById("addComment");
+    const toggleCommentsButton = document.getElementById("toggleComments");
+    const exportAnnotatedHtmlButton = document.getElementById("exportAnnotatedHtml");
+    const exportCleanHtmlButton = document.getElementById("exportCleanHtml");
+    const commentsPanel = document.getElementById("commentsPanel");
+    const commentList = document.getElementById("commentList");
+    const emptyComments = document.getElementById("emptyComments");
+    const statusText = document.getElementById("statusText");
+    let commentsVisible = true;
+
+    function setStatus(text) {
+      statusText.textContent = text;
+    }
+
+    function nextCommentId() {
+      return `comment-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    }
+
+    function getAnchorById(id) {
+      return document.querySelector(`.comment-anchor[data-comment-id="${id}"]`);
+    }
+
+    function highlightComment(id) {
+      document.querySelectorAll(".comment-item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.commentId === id);
+      });
+    }
+
+    function bindAnchor(anchor) {
+      anchor.addEventListener("click", () => {
+        highlightComment(anchor.dataset.commentId);
+      });
+    }
+
+    function renderComments() {
+      const anchors = [...document.querySelectorAll(".comment-anchor")];
+      commentList.innerHTML = "";
+      emptyComments.style.display = anchors.length ? "none" : "block";
+
+      anchors.forEach((anchor, index) => {
+        const item = document.createElement("section");
+        item.className = "comment-item";
+        item.dataset.commentId = anchor.dataset.commentId;
+        item.innerHTML = `
+          <div class="comment-meta">批注 ${index + 1}</div>
+          <div class="comment-text"></div>
+          <div class="comment-actions">
+            <button type="button" data-action="locate">定位原文</button>
+            <button type="button" data-action="edit">修改批注</button>
+            <button type="button" data-action="delete">删除批注</button>
+          </div>
+        `;
+        item.querySelector(".comment-text").textContent = anchor.dataset.comment || "";
+        item.querySelector('[data-action="locate"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          highlightComment(anchor.dataset.commentId);
+        });
+        item.querySelector('[data-action="edit"]').addEventListener("click", () => {
+          const nextComment = window.prompt("修改批注内容：", anchor.dataset.comment || "");
+          if (!nextComment || !nextComment.trim()) {
+            return;
+          }
+          anchor.dataset.comment = nextComment.trim();
+          renderComments();
+          setStatus("已修改批注");
+        });
+        item.querySelector('[data-action="delete"]').addEventListener("click", () => {
+          const target = getAnchorById(anchor.dataset.commentId);
+          if (!target) {
+            return;
+          }
+          target.replaceWith(document.createTextNode(target.textContent));
+          renderComments();
+          setStatus("已删除批注");
+        });
+        commentList.appendChild(item);
+      });
+    }
+
+    toggleEditButton.addEventListener("click", () => {
+      const isEditing = document.body.classList.toggle("editing");
+      documentContent.contentEditable = isEditing ? "true" : "false";
+      toggleEditButton.textContent = isEditing ? "退出编辑" : "开启编辑";
+      toggleEditButton.classList.toggle("is-active", isEditing);
+      setStatus(isEditing ? "当前为编辑模式，可直接修改正文" : "当前为阅读模式");
+    });
+
+    addCommentButton.addEventListener("click", () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        setStatus("请先在正文中选中一段文字");
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (!documentContent.contains(range.commonAncestorContainer)) {
+        setStatus("只能给正文内容添加批注");
+        return;
+      }
+
+      const comment = window.prompt("请输入批注内容：");
+      if (!comment || !comment.trim()) {
+        setStatus("未添加批注");
+        return;
+      }
+
+      const anchor = document.createElement("span");
+      anchor.className = "comment-anchor";
+      anchor.dataset.commentId = nextCommentId();
+      anchor.dataset.comment = comment.trim();
+
+      try {
+        range.surroundContents(anchor);
+      } catch (error) {
+        setStatus("所选内容跨越了多个结构块，请缩小选择范围后重试");
+        return;
+      }
+
+      selection.removeAllRanges();
+      bindAnchor(anchor);
+      renderComments();
+      setStatus("已添加批注");
+    });
+
+    toggleCommentsButton.addEventListener("click", () => {
+      commentsVisible = !commentsVisible;
+      commentsPanel.style.display = commentsVisible ? "block" : "none";
+      toggleCommentsButton.textContent = commentsVisible ? "隐藏批注" : "显示批注";
+    });
+
+    function buildExportDocument(removeComments) {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelector("body")?.classList.remove("editing");
+      const clonedContent = clone.querySelector("#documentContent");
+      if (clonedContent) {
+        clonedContent.setAttribute("contenteditable", "false");
+      }
+      const clonedToggleButton = clone.querySelector("#toggleEdit");
+      if (clonedToggleButton) {
+        clonedToggleButton.textContent = "开启编辑";
+        clonedToggleButton.classList.remove("is-active");
+      }
+      clone.querySelectorAll(".comment-item.is-active").forEach((item) => item.classList.remove("is-active"));
+      const status = clone.querySelector("#statusText");
+      if (status) {
+        status.textContent = "当前为阅读模式";
+      }
+      if (removeComments) {
+        clone.querySelectorAll(".comment-anchor").forEach((anchor) => {
+          anchor.replaceWith(document.createTextNode(anchor.textContent));
+        });
+        clone.querySelector("#commentList").innerHTML = "";
+        clone.querySelector("#emptyComments").style.display = "block";
+      }
+      return "<!doctype html>\n" + clone.outerHTML;
+    }
+
+    function downloadHtml(content, filename) {
+      const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    exportAnnotatedHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(false), "技术实现方案与开发任务拆解_含批注.html");
+      setStatus("已导出含批注 HTML");
+    });
+
+    exportCleanHtmlButton.addEventListener("click", () => {
+      downloadHtml(buildExportDocument(true), "技术实现方案与开发任务拆解_清洁版.html");
+      setStatus("已导出清洁版 HTML");
+    });
+
+    document.querySelectorAll(".comment-anchor").forEach(bindAnchor);
+    renderComments();
+  </script>
+</body>
+</html>

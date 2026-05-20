@@ -1,0 +1,45 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "version": "2.0",
+  "envId": "cloudbase-d0gqn3qol9fab297a",
+  "functionRoot": "cloudfunctions",
+  "functionDefaultConfig": {
+    "runtime": "Nodejs20.19",
+    "handler": "index.main",
+    "memorySize": 256,
+    "timeout": 20,
+    "installDependency": true,
+    "ignore": ["node_modules", "node_modules/**/*", ".git", ".git/**/*"]
+  },
+  "functions": [
+    {
+      "name": "createMatch",
+      "description": "创建比赛、房间和初始快照"
+    },
+    {
+      "name": "parseEvent",
+      "description": "解析自然语言文本为待确认事件草稿"
+    },
+    {
+      "name": "confirmEvent",
+      "description": "确认事件、写入事件流并重算比赛快照"
+    },
+    {
+      "name": "transcribeAudio",
+      "description": "调用火山引擎 ASR 转写云存储录音",
+      "timeout": 60
+    },
+    {
+      "name": "saveSignature",
+      "description": "保存赛后双方队长签字"
+    },
+    {
+      "name": "generateArchive",
+      "description": "生成归档版本和导出文件"
+    },
+    {
+      "name": "getArchiveStatus",
+      "description": "读取赛后签字和最新归档状态"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/join/index",
+    "pages/create/index",
+    "pages/scoreboard/index",
+    "pages/match-info/index",
+    "pages/archive/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "篮球技术台自动化",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f7fb",
+    "backgroundTextStyle": "light"
+  },
+  "sitemapLocation": "sitemap.json"
+}
