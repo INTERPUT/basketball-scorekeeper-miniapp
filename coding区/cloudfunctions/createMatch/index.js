@@ -21,7 +21,7 @@ function validateRoster(players) {
 
   players.forEach((player, index) => {
     if (!player.number || !player.name) {
-      errors.push(`第 ${index + 1} 行球员信息不完整，请按“号码 姓名”录入。`);
+      errors.push(`第 ${index + 1} 名球员信息不完整，请补全号码和姓名。`);
       return;
     }
 

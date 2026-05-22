@@ -4,6 +4,8 @@ coding区/*.txt
 coding区/*.wav
 coding区/cloudfunctions/**/.env*
 coding区/cloudfunctions/**/config.private.*
+coding区/miniprogram/project.config.json
+coding区/miniprogram/project.private.config.json
 bin/
 AI持续编程实操_harness.html
 assets/ICP核准.jpg

@@ -10,7 +10,8 @@
     "postcss": true,
     "minified": false,
     "urlCheck": false,
-    "compileHotReLoad": true
+    "compileHotReLoad": true,
+    "minifyWXML": true
   },
   "appid": "wxea2e2cd6be13bf69"
 }

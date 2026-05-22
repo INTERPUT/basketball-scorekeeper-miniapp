@@ -69,6 +69,26 @@ describe("parseEventText", () => {
     });
   });
 
+  it("starts the next period after the previous period has ended", () => {
+    const endedSnapshot = {
+      ...snapshot,
+      currentPeriod: 1,
+      clock: {
+        period: 1,
+        status: "period_ended" as const,
+        remainingSeconds: 0
+      }
+    };
+
+    expect(parseEventText(match, endedSnapshot, "开始计时")).toMatchObject({
+      ok: true,
+      draft: {
+        eventType: "clock_start",
+        period: 2
+      }
+    });
+  });
+
   it("returns the standardized rejection message for incomplete input", () => {
     expect(parseEventText(match, snapshot, "7 号得分")).toEqual({
       ok: false,

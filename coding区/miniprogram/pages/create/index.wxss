@@ -1,3 +1,101 @@
 button {
   margin-bottom: 32rpx;
 }
+
+.roster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.roster-header .label {
+  margin-bottom: 0;
+}
+
+.small-button {
+  margin: 0;
+  min-width: 156rpx;
+  padding: 0 18rpx;
+  line-height: 64rpx;
+  font-size: 26rpx;
+}
+
+.roster-list,
+.empty-roster {
+  border: 1rpx solid #d8dee8;
+  background: #ffffff;
+}
+
+.empty-roster {
+  padding: 20rpx;
+  color: #667085;
+  border-style: dashed;
+}
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 18rpx;
+  border-bottom: 1rpx solid #edf1f6;
+}
+
+.roster-row:last-child {
+  border-bottom: 0;
+}
+
+.player-number {
+  width: 96rpx;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.player-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.remove-button {
+  margin: 0;
+  min-width: 96rpx;
+  padding: 0 12rpx;
+  line-height: 56rpx;
+  font-size: 24rpx;
+  color: #b42318;
+  background: #ffffff;
+  border: 1rpx solid #fecdca;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  box-sizing: border-box;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal {
+  width: 100%;
+  max-width: 640rpx;
+  padding: 28rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1rpx solid #d8dee8;
+}
+
+.modal-actions {
+  margin-top: 24rpx;
+}
+
+.modal-actions button {
+  margin-bottom: 0;
+}

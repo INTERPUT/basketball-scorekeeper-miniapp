@@ -16,8 +16,20 @@ function getDatabase() {
   return wx.cloud.database();
 }
 
-function normalizeCloudError(error: unknown, fallback: string): Error {
-  return error instanceof Error ? error : new Error(fallback);
+function isCloudSystemErrorMessage(message: string): boolean {
+  return /document\.get:fail|cannot find document|access permission|errCode|cloudbase|database/i.test(message);
+}
+
+export function normalizeCloudError(error: unknown, fallback: string): Error {
+  if (!(error instanceof Error)) {
+    return new Error(fallback);
+  }
+
+  if (!error.message || isCloudSystemErrorMessage(error.message)) {
+    return new Error(fallback);
+  }
+
+  return error;
 }
 
 async function callFunction<T>(name: string, data: Record<string, unknown>): Promise<T> {
@@ -38,11 +50,11 @@ async function findRoom(roomCode: string): Promise<Room> {
     const result = await getDatabase().collection("rooms").doc(roomCode).get();
     const room = result.data as Room;
     if (!room || room.status !== "active") {
-      throw new Error("房间不存在或已失效。");
+      throw new Error("未找到比赛房间。");
     }
     return room;
   } catch (error) {
-    throw normalizeCloudError(error, "房间不存在或已失效。");
+    throw normalizeCloudError(error, "未找到比赛房间。");
   }
 }
 
@@ -58,7 +70,7 @@ export async function joinRoom(roomCode: string): Promise<MatchSnapshot> {
     const result = await getDatabase().collection("snapshots").doc(room.matchId).get();
     return result.data as MatchSnapshot;
   } catch (error) {
-    throw normalizeCloudError(error, "比赛信息不存在。");
+    throw normalizeCloudError(error, "未找到比赛信息。");
   }
 }
 
@@ -82,7 +94,13 @@ export async function watchRoomSnapshot(
   listener: (snapshot: MatchSnapshot) => void
 ): Promise<() => void> {
   const room = await findRoom(roomCode);
-  const watcher = getDatabase()
+  const database = getDatabase();
+  const initialSnapshot = await database.collection("snapshots").doc(room.matchId).get();
+  if (initialSnapshot.data) {
+    listener(initialSnapshot.data as MatchSnapshot);
+  }
+
+  const watcher = database
     .collection("snapshots")
     .doc(room.matchId)
     .watch({

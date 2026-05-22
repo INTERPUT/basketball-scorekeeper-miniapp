@@ -1,6 +1,18 @@
-import type { CreateMatchInput } from "../../domain/models";
-import { normalizeRoomCode, parseRosterText } from "../../domain/validation";
+import type { CreateMatchInput, Player } from "../../domain/models";
+import { normalizePlayerNumber, normalizeRoomCode } from "../../domain/validation";
 import { createMatch } from "../../services/cloudMatchService";
+
+type TeamSide = "home" | "away";
+type PlayerDraft = Pick<Player, "number" | "name">;
+type RosterKey = "homePlayers" | "awayPlayers";
+
+function getRosterKey(team: TeamSide): RosterKey {
+  return team === "home" ? "homePlayers" : "awayPlayers";
+}
+
+function getTeamLabel(team: TeamSide): string {
+  return team === "home" ? "主队" : "客队";
+}
 
 Page({
   data: {
@@ -8,10 +20,16 @@ Page({
     periodLengthMinutes: "10",
     homeTeamName: "",
     homeTeamColor: "白色",
-    homeRosterText: "",
+    homePlayers: [] as PlayerDraft[],
     awayTeamName: "",
     awayTeamColor: "蓝色",
-    awayRosterText: "",
+    awayPlayers: [] as PlayerDraft[],
+    playerModalVisible: false,
+    playerModalTeam: "home" as TeamSide,
+    playerModalTeamLabel: "主队",
+    playerNumber: "",
+    playerName: "",
+    playerModalError: "",
     showAdvanced: false,
     competitionName: "",
     venue: "",
@@ -40,6 +58,94 @@ Page({
     });
   },
 
+  openPlayerModal(event: WechatMiniprogram.TouchEvent) {
+    const team = event.currentTarget.dataset.team === "away" ? "away" : "home";
+
+    this.setData({
+      playerModalVisible: true,
+      playerModalTeam: team,
+      playerModalTeamLabel: getTeamLabel(team),
+      playerNumber: "",
+      playerName: "",
+      playerModalError: "",
+      error: ""
+    });
+  },
+
+  closePlayerModal() {
+    this.setData({
+      playerModalVisible: false,
+      playerNumber: "",
+      playerName: "",
+      playerModalError: ""
+    });
+  },
+
+  onPlayerNumberInput(event: WechatMiniprogram.Input) {
+    this.setData({
+      playerNumber: normalizePlayerNumber(String(event.detail.value)),
+      playerModalError: ""
+    });
+  },
+
+  onPlayerNameInput(event: WechatMiniprogram.Input) {
+    this.setData({
+      playerName: String(event.detail.value),
+      playerModalError: ""
+    });
+  },
+
+  confirmPlayerModal() {
+    const team = this.data.playerModalTeam as TeamSide;
+    const rosterKey = getRosterKey(team);
+    const players = this.data[rosterKey] as PlayerDraft[];
+    const number = normalizePlayerNumber(this.data.playerNumber);
+    const name = this.data.playerName.trim();
+
+    if (!number) {
+      this.setData({ playerModalError: "请输入球衣号码。" });
+      return;
+    }
+
+    if (!name) {
+      this.setData({ playerModalError: "请输入球员名称。" });
+      return;
+    }
+
+    if (players.some((player) => player.number === number)) {
+      this.setData({
+        playerModalError: `${getTeamLabel(team)}已有 ${number} 号球员。`
+      });
+      return;
+    }
+
+    this.setData({
+      [rosterKey]: [...players, { number, name }],
+      playerModalVisible: false,
+      playerNumber: "",
+      playerName: "",
+      playerModalError: "",
+      error: ""
+    });
+  },
+
+  removePlayer(event: WechatMiniprogram.TouchEvent) {
+    const team = event.currentTarget.dataset.team === "away" ? "away" : "home";
+    const rosterKey = getRosterKey(team);
+    const index = Number(event.currentTarget.dataset.index);
+    const players = [...(this.data[rosterKey] as PlayerDraft[])];
+
+    if (!Number.isInteger(index) || index < 0 || index >= players.length) {
+      return;
+    }
+
+    players.splice(index, 1);
+    this.setData({
+      [rosterKey]: players,
+      error: ""
+    });
+  },
+
   async handleSubmit() {
     try {
       const input: CreateMatchInput = {
@@ -55,12 +161,12 @@ Page({
           {
             name: this.data.homeTeamName,
             color: this.data.homeTeamColor,
-            players: parseRosterText(this.data.homeRosterText)
+            players: this.data.homePlayers
           },
           {
             name: this.data.awayTeamName,
             color: this.data.awayTeamColor,
-            players: parseRosterText(this.data.awayRosterText)
+            players: this.data.awayPlayers
           }
         ]
       };

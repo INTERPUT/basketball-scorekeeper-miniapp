@@ -35,8 +35,40 @@ function createDraft(
   };
 }
 
+function getClockStartPeriod(snapshot: MatchSnapshot): number {
+  return snapshot.clock.status === "period_ended" ? snapshot.currentPeriod + 1 : snapshot.currentPeriod;
+}
+
 function parseClockText(snapshot: MatchSnapshot, rawText: string, compactText: string): ParseEventResult | undefined {
   if (compactText === "开始计时") {
+    const period = getClockStartPeriod(snapshot);
+    return {
+      ok: true,
+      draft: {
+        ...createDraft(snapshot, rawText, {
+          eventType: "clock_start",
+          dataEffect: period === snapshot.currentPeriod ? "开始比赛计时" : `开始第 ${period} 节计时`
+        }),
+        period
+      }
+    };
+  }
+
+  if (compactText === "开始下一节") {
+    const period = snapshot.currentPeriod + 1;
+    return {
+      ok: true,
+      draft: {
+        ...createDraft(snapshot, rawText, {
+          eventType: "clock_start",
+          dataEffect: `开始第 ${period} 节计时`
+        }),
+        period
+      }
+    };
+  }
+
+  if (compactText === "开始比赛") {
     return {
       ok: true,
       draft: createDraft(snapshot, rawText, {

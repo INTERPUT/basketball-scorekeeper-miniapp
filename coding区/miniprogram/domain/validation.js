@@ -2,12 +2,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ROOM_CODE_PATTERN = void 0;
 exports.normalizeRoomCode = normalizeRoomCode;
+exports.normalizePlayerNumber = normalizePlayerNumber;
 exports.isValidRoomCode = isValidRoomCode;
 exports.parseRosterText = parseRosterText;
 exports.validateRoster = validateRoster;
 exports.ROOM_CODE_PATTERN = /^\d{4}$/;
 function normalizeRoomCode(value) {
     return value.replace(/\D/g, "").slice(0, 4);
+}
+function normalizePlayerNumber(value) {
+    return value.replace(/\D/g, "").slice(0, 3);
 }
 function isValidRoomCode(value) {
     return exports.ROOM_CODE_PATTERN.test(value);
@@ -34,7 +38,7 @@ function validateRoster(players) {
     }
     players.forEach((player, index) => {
         if (!player.number || !player.name) {
-            errors.push(`第 ${index + 1} 行球员信息不完整，请按“号码 姓名”录入。`);
+            errors.push(`第 ${index + 1} 名球员信息不完整，请补全号码和姓名。`);
             return;
         }
         if (seenNumbers.has(player.number)) {

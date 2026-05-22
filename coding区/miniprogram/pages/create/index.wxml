@@ -22,8 +22,18 @@
       <input class="input" value="{{homeTeamColor}}" data-field="homeTeamColor" bindinput="onFieldInput" />
     </view>
     <view class="field">
-      <text class="label">球员名单</text>
-      <textarea class="textarea" value="{{homeRosterText}}" placeholder="示例：&#10;7 张三&#10;11 李四" data-field="homeRosterText" bindinput="onFieldInput" />
+      <view class="roster-header">
+        <text class="label">球员名单</text>
+        <button class="secondary small-button" data-team="home" bindtap="openPlayerModal">添加球员</button>
+      </view>
+      <view wx:if="{{homePlayers.length}}" class="roster-list">
+        <view wx:for="{{homePlayers}}" wx:key="number" class="roster-row">
+          <text class="player-number">#{{item.number}}</text>
+          <text class="player-name">{{item.name}}</text>
+          <button class="remove-button" data-team="home" data-index="{{index}}" bindtap="removePlayer">删除</button>
+        </view>
+      </view>
+      <view wx:else class="empty-roster">暂无球员</view>
     </view>
   </view>
 
@@ -38,8 +48,18 @@
       <input class="input" value="{{awayTeamColor}}" data-field="awayTeamColor" bindinput="onFieldInput" />
     </view>
     <view class="field">
-      <text class="label">球员名单</text>
-      <textarea class="textarea" value="{{awayRosterText}}" placeholder="示例：&#10;8 王五&#10;12 赵六" data-field="awayRosterText" bindinput="onFieldInput" />
+      <view class="roster-header">
+        <text class="label">球员名单</text>
+        <button class="secondary small-button" data-team="away" bindtap="openPlayerModal">添加球员</button>
+      </view>
+      <view wx:if="{{awayPlayers.length}}" class="roster-list">
+        <view wx:for="{{awayPlayers}}" wx:key="number" class="roster-row">
+          <text class="player-number">#{{item.number}}</text>
+          <text class="player-name">{{item.name}}</text>
+          <button class="remove-button" data-team="away" data-index="{{index}}" bindtap="removePlayer">删除</button>
+        </view>
+      </view>
+      <view wx:else class="empty-roster">暂无球员</view>
     </view>
   </view>
 
@@ -63,4 +83,23 @@
 
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <button class="primary" bindtap="handleSubmit">创建房间</button>
+
+  <view wx:if="{{playerModalVisible}}" class="modal-backdrop">
+    <view class="modal">
+      <view class="section-title">添加{{playerModalTeamLabel}}球员</view>
+      <view class="field">
+        <text class="label">球衣号码</text>
+        <input class="input" type="number" maxlength="3" value="{{playerNumber}}" placeholder="例如 7" bindinput="onPlayerNumberInput" />
+      </view>
+      <view class="field">
+        <text class="label">球员名称</text>
+        <input class="input" value="{{playerName}}" placeholder="例如 张三" bindinput="onPlayerNameInput" />
+      </view>
+      <view wx:if="{{playerModalError}}" class="error">{{playerModalError}}</view>
+      <view class="button-row modal-actions">
+        <button class="secondary" bindtap="closePlayerModal">取消</button>
+        <button class="primary" bindtap="confirmPlayerModal">添加</button>
+      </view>
+    </view>
+  </view>
 </view>

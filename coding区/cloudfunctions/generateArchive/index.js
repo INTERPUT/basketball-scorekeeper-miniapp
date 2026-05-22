@@ -1,5 +1,6 @@
 const cloud = require("wx-server-sdk");
 const PDFDocument = require("pdfkit");
+const path = require("path");
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
@@ -8,6 +9,8 @@ cloud.init({
 const db = cloud.database();
 const REQUIRED_SIGNATURE_ROLES = ["home_captain", "away_captain"];
 const REQUIRED_COLLECTIONS = ["signatures", "archives", "exportFiles"];
+const PDF_FONT_NAME = "NotoSansSC";
+const PDF_FONT_PATH = path.join(__dirname, "NotoSansSC-VF.ttf");
 
 async function ensureCollections() {
   await Promise.all(
@@ -61,6 +64,107 @@ function eventLabel(event) {
     game_end: "比赛结束"
   };
   return labels[event.eventType] || event.eventType;
+}
+
+function statusLabel(status) {
+  const labels = {
+    draft: "草稿",
+    live: "进行中",
+    period_break: "节间休息",
+    finished: "已结束",
+    archived: "已归档"
+  };
+  return labels[status] || status;
+}
+
+function contentWidth(doc) {
+  return doc.page.width - doc.page.margins.left - doc.page.margins.right;
+}
+
+function ensurePdfSpace(doc, height) {
+  if (doc.y + height <= doc.page.height - doc.page.margins.bottom) {
+    return;
+  }
+  doc.addPage();
+  doc.font(PDF_FONT_NAME).fillColor("#111827");
+}
+
+function setPdfText(doc, size = 10, bold = false) {
+  doc.font(PDF_FONT_NAME).fontSize(size).fillColor(bold ? "#111827" : "#1f2937");
+}
+
+function drawPdfSection(doc, title) {
+  ensurePdfSpace(doc, 42);
+  doc.moveDown(0.6);
+  setPdfText(doc, 13, true);
+  doc.text(title);
+  doc.moveDown(0.3);
+}
+
+function drawPdfTable(doc, headers, rows, widths) {
+  const rowHeight = 26;
+  const startX = doc.page.margins.left;
+
+  function drawRow(row, isHeader) {
+    ensurePdfSpace(doc, rowHeight + 4);
+    let x = startX;
+    const y = doc.y;
+    row.forEach((cell, index) => {
+      const width = widths[index];
+      doc
+        .save()
+        .rect(x, y, width, rowHeight)
+        .fill(isHeader ? "#f3f4f6" : "#ffffff")
+        .restore();
+      doc.strokeColor("#111827").lineWidth(0.7).rect(x, y, width, rowHeight).stroke();
+      setPdfText(doc, isHeader ? 9.5 : 9, isHeader);
+      doc.text(String(cell ?? ""), x + 5, y + 7, {
+        width: width - 10,
+        height: rowHeight - 10,
+        ellipsis: true
+      });
+      x += width;
+    });
+    doc.y = y + rowHeight;
+  }
+
+  drawRow(headers, true);
+  rows.forEach((row) => drawRow(row, false));
+  doc.moveDown(0.5);
+}
+
+function teamNameById(match, teamId) {
+  return match.teams.find((team) => team.teamId === teamId)?.name || "";
+}
+
+function playerById(match, teamId, playerId) {
+  const team = match.teams.find((item) => item.teamId === teamId);
+  return team?.players.find((player) => player.playerId === playerId);
+}
+
+function eventDetail(match, event) {
+  const teamName = event.teamId ? teamNameById(match, event.teamId) : "";
+  const player = event.teamId && event.playerId ? playerById(match, event.teamId, event.playerId) : null;
+  const playerText = player ? `${player.number}号 ${player.name}` : "";
+
+  switch (event.eventType) {
+    case "score_free_throw":
+      return `${teamName} ${playerText} 罚球命中`;
+    case "score_two_point":
+      return `${teamName} ${playerText} 两分命中`;
+    case "score_three_point":
+      return `${teamName} ${playerText} 三分命中`;
+    case "free_throw_series_result":
+      return `${teamName} ${playerText} ${event.attempts}罚中${event.made}`;
+    case "personal_foul":
+      return `${teamName} ${playerText} 个人犯规`;
+    case "team_timeout":
+      return `${teamName} 暂停`;
+    case "clock_correct":
+      return `时间更正为 ${formatClock(event.targetRemainingSeconds)}`;
+    default:
+      return eventLabel(event);
+  }
 }
 
 function stripDocumentId(document) {
@@ -217,7 +321,8 @@ async function buildScoreSheetHtml({ match, snapshot, events, signatures, archiv
 </html>`;
 }
 
-async function buildPdfReport({ snapshot, events, signatures, archiveId, version, createdAt }) {
+async function buildPdfReport({ match, snapshot, events, signatures, archiveId, version, createdAt }) {
+  const totals = buildPlayerTotals(match, events);
   const signatureByRole = Object.fromEntries(signatures.map((signature) => [signature.role, signature]));
   const [homeSignatureBuffer, awaySignatureBuffer] = await Promise.all([
     imageBuffer(signatureByRole.home_captain.fileID),
@@ -227,31 +332,89 @@ async function buildPdfReport({ snapshot, events, signatures, archiveId, version
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: "A4", margin: 48 });
+    doc.registerFont(PDF_FONT_NAME, PDF_FONT_PATH);
 
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text("Basketball Match Archive Report", { align: "center" });
+    setPdfText(doc, 18, true);
+    doc.text("篮球比赛归档报告", { align: "center" });
     doc.moveDown();
-    doc.fontSize(11);
-    doc.text(`Archive: ${archiveId}`);
-    doc.text(`Version: v${version}`);
-    doc.text(`Generated At: ${createdAt}`);
-    doc.text(`Match ID: ${snapshot.matchId}`);
-    doc.text(`Status: ${snapshot.status}`);
-    doc.moveDown();
-    doc.fontSize(14).text("Final Score");
-    doc.fontSize(12).text(`Team 1: ${snapshot.teams[0].score}`);
-    doc.text(`Team 2: ${snapshot.teams[1].score}`);
-    doc.text(`Events: ${events.length}`);
-    doc.moveDown();
-    doc.fontSize(14).text("Captain Signatures");
+
+    drawPdfSection(doc, "比赛信息");
+    drawPdfTable(
+      doc,
+      ["项目", "内容"],
+      [
+        ["归档编号", archiveId],
+        ["版本", `v${version}`],
+        ["生成时间", createdAt],
+        ["比赛编号", snapshot.matchId],
+        ["比赛状态", statusLabel(snapshot.status)],
+        ["赛事名称", match.header && match.header.competitionName ? match.header.competitionName : ""],
+        ["比赛场地", match.header && match.header.venue ? match.header.venue : ""],
+        ["裁判", match.header && match.header.referee ? match.header.referee : ""]
+      ],
+      [90, contentWidth(doc) - 90]
+    );
+
+    drawPdfSection(doc, "球队得分");
+    const periods = Object.keys(snapshot.periodScores).sort((a, b) => Number(a) - Number(b));
+    const periodWidth = Math.floor((contentWidth(doc) - 150) / (periods.length + 1));
+    drawPdfTable(
+      doc,
+      ["队伍", ...periods.map((period) => `第${period}节`), "总分"],
+      snapshot.teams.map((team, teamIndex) => [
+        team.name,
+        ...periods.map((period) => snapshot.periodScores[period][teamIndex]),
+        team.score
+      ]),
+      [150, ...periods.map(() => periodWidth), periodWidth]
+    );
+
+    drawPdfSection(doc, "球员个人得分");
+    match.teams.forEach((team) => {
+      setPdfText(doc, 11, true);
+      doc.text(team.name);
+      drawPdfTable(
+        doc,
+        ["号码", "球员", "得分", "犯规"],
+        team.players.map((player) => {
+          const total = totals[team.teamId][player.playerId];
+          return [player.number, player.name, total.points, total.fouls];
+        }),
+        [60, contentWidth(doc) - 220, 80, 80]
+      );
+    });
+
+    drawPdfSection(doc, "逐条记录");
+    drawPdfTable(
+      doc,
+      ["节次", "时间", "事件内容", "记录时间"],
+      events.map((event) => [
+        `第${event.period}节`,
+        formatClock(event.gameClockSeconds),
+        eventDetail(match, event),
+        event.createdAt
+      ]),
+      [48, 58, contentWidth(doc) - 216, 110]
+    );
+
+    drawPdfSection(doc, "双方队长签字");
+    ensurePdfSpace(doc, 240);
+    setPdfText(doc, 11, true);
+    doc.text(`${match.teams[0].name} 队长签字`);
+    setPdfText(doc, 9);
+    doc.text(signatureByRole.home_captain.signedAt);
     doc.moveDown(0.5);
-    doc.fontSize(11).text(`Home Captain: ${signatureByRole.home_captain.signedAt}`);
     doc.image(homeSignatureBuffer, { fit: [220, 90] });
     doc.moveDown();
-    doc.text(`Away Captain: ${signatureByRole.away_captain.signedAt}`);
+    setPdfText(doc, 11, true);
+    doc.text(`${match.teams[1].name} 队长签字`);
+    setPdfText(doc, 9);
+    doc.text(signatureByRole.away_captain.signedAt);
+    doc.moveDown(0.5);
     doc.image(awaySignatureBuffer, { fit: [220, 90] });
 
     doc.end();
@@ -363,6 +526,7 @@ exports.main = async (event) => {
     createdAt
   });
   const pdf = await buildPdfReport({
+    match,
     snapshot: archivedSnapshot,
     events,
     signatures,

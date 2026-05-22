@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.normalizeCloudError = normalizeCloudError;
 exports.createMatch = createMatch;
 exports.joinRoom = joinRoom;
 exports.parseTextEvent = parseTextEvent;
@@ -13,8 +14,17 @@ const validation_1 = require("../domain/validation");
 function getDatabase() {
     return wx.cloud.database();
 }
+function isCloudSystemErrorMessage(message) {
+    return /document\.get:fail|cannot find document|access permission|errCode|cloudbase|database/i.test(message);
+}
 function normalizeCloudError(error, fallback) {
-    return error instanceof Error ? error : new Error(fallback);
+    if (!(error instanceof Error)) {
+        return new Error(fallback);
+    }
+    if (!error.message || isCloudSystemErrorMessage(error.message)) {
+        return new Error(fallback);
+    }
+    return error;
 }
 async function callFunction(name, data) {
     const response = await wx.cloud.callFunction({
@@ -31,12 +41,12 @@ async function findRoom(roomCode) {
         const result = await getDatabase().collection("rooms").doc(roomCode).get();
         const room = result.data;
         if (!room || room.status !== "active") {
-            throw new Error("房间不存在或已失效。");
+            throw new Error("未找到比赛房间。");
         }
         return room;
     }
     catch (error) {
-        throw normalizeCloudError(error, "房间不存在或已失效。");
+        throw normalizeCloudError(error, "未找到比赛房间。");
     }
 }
 async function createMatch(input) {
@@ -50,7 +60,7 @@ async function joinRoom(roomCode) {
         return result.data;
     }
     catch (error) {
-        throw normalizeCloudError(error, "比赛信息不存在。");
+        throw normalizeCloudError(error, "未找到比赛信息。");
     }
 }
 async function parseTextEvent(roomCode, text) {
@@ -68,7 +78,12 @@ async function confirmDraftEvent(roomCode, draft) {
 }
 async function watchRoomSnapshot(roomCode, listener) {
     const room = await findRoom(roomCode);
-    const watcher = getDatabase()
+    const database = getDatabase();
+    const initialSnapshot = await database.collection("snapshots").doc(room.matchId).get();
+    if (initialSnapshot.data) {
+        listener(initialSnapshot.data);
+    }
+    const watcher = database
         .collection("snapshots")
         .doc(room.matchId)
         .watch({

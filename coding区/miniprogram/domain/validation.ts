@@ -6,6 +6,10 @@ export function normalizeRoomCode(value: string): string {
   return value.replace(/\D/g, "").slice(0, 4);
 }
 
+export function normalizePlayerNumber(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 3);
+}
+
 export function isValidRoomCode(value: string): boolean {
   return ROOM_CODE_PATTERN.test(value);
 }
@@ -35,7 +39,7 @@ export function validateRoster(players: Array<Pick<Player, "number" | "name">>):
 
   players.forEach((player, index) => {
     if (!player.number || !player.name) {
-      errors.push(`第 ${index + 1} 行球员信息不完整，请按“号码 姓名”录入。`);
+      errors.push(`第 ${index + 1} 名球员信息不完整，请补全号码和姓名。`);
       return;
     }
 
