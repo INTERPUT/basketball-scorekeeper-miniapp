@@ -87,5 +87,5 @@
 - 上传验证：`npm run build:miniprogram`、`npm run typecheck`、`npm test` 均通过后执行上传；首次上传因 `sitemap.json` 规则为空被微信校验拒绝，修复后重新上传成功。
 - 微信上传结果：版本号 `0.1.0`，代码包总大小 `68.5 KB` / `70114` 字节；上传信息已写入 `coding区/.devtools/upload-info.json`。
 - 演示视频录制前验证：`npm test` 通过，6 个测试文件、21 个测试用例；`npm run typecheck` 通过。
-- 演示视频产物验证：`篮球技术台自动化_三分钟演示视频.mp4` 生成成功，MP4 容器包含正常 `ftyp/mdat/moov`，解析时长约 `180.25` 秒。
+- 演示视频产物验证：`篮球技术台自动化_三分钟演示视频.mp4` 生成成功，MP4 容器包含正常 `ftyp/mdat/moov`，解析时长约 `172.29` 秒，满足 3 分钟以内要求。
 - 最终提交复核：`npm run build:miniprogram`、`npm run typecheck`、`npm test` 均通过；远端 GitHub 仓库 `INTERPUT/basketball-scorekeeper-miniapp` 的 `main` 分支可访问。
