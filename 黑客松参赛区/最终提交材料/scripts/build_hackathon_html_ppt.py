@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import re
 import shutil
 from pathlib import Path
 
@@ -11,18 +12,38 @@ ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "黑客松参赛区" / "最终提交材料"
 REQ_DIR = ROOT / "黑客松参赛区" / "修改要求及素材"
 SKILL_DIR = ROOT / ".external" / "frontend-slides-editable"
+REFERENCE_HTML = SKILL_DIR / "examples" / "editable-deck-reference.html"
 ASSET_DIR = FINAL_DIR / "html-ppt-assets"
 OUT_HTML = FINAL_DIR / "篮球技术台自动化_黑客松演示.html"
 
 
-def resize_image(src: Path, dst: Path, max_width: int = 1400) -> None:
+def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    names = ["msyhbd.ttc", "simhei.ttf"] if bold else ["msyh.ttc", "simhei.ttf"]
+    for name in names + ["arial.ttf"]:
+        path = Path("C:/Windows/Fonts") / name
+        if path.exists():
+            return ImageFont.truetype(str(path), size)
+    return ImageFont.load_default()
+
+
+def resize_image(src: Path, dst: Path, max_width: int = 1600) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as img:
         img = img.convert("RGB")
         if img.width > max_width:
             ratio = max_width / img.width
             img = img.resize((max_width, int(img.height * ratio)), Image.LANCZOS)
-        img.save(dst, quality=86, optimize=True)
+        img.save(dst, quality=88, optimize=True)
+
+
+def fit_image(img: Image.Image, box: tuple[int, int], bg: str = "#f6f1e8") -> Image.Image:
+    img = img.convert("RGB")
+    canvas = Image.new("RGB", box, bg)
+    ratio = min(box[0] / img.width, box[1] / img.height)
+    size = (int(img.width * ratio), int(img.height * ratio))
+    resized = img.resize(size, Image.LANCZOS)
+    canvas.paste(resized, ((box[0] - size[0]) // 2, (box[1] - size[1]) // 2))
+    return canvas
 
 
 def make_grassroots_sketch(dst: Path) -> None:
@@ -30,15 +51,6 @@ def make_grassroots_sketch(dst: Path) -> None:
     w, h = 1400, 850
     img = Image.new("RGB", (w, h), "#f5f0e6")
     draw = ImageDraw.Draw(img)
-
-    def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-        names = ["msyhbd.ttc", "simhei.ttf"] if bold else ["msyh.ttc", "simhei.ttf"]
-        for name in names + ["arial.ttf"]:
-            p = Path("C:/Windows/Fonts") / name
-            if p.exists():
-                return ImageFont.truetype(str(p), size)
-        return ImageFont.load_default()
-
     title = font(62, True)
     label = font(38, True)
     body = font(30)
@@ -50,13 +62,10 @@ def make_grassroots_sketch(dst: Path) -> None:
 
     draw.text((70, 55), "基层篮球赛常见技术台", font=title, fill=ink)
     draw.text((72, 135), "一块翻分牌 + 一张难读的记录表 + 一名临时技术员", font=body, fill="#6b6257")
-
-    # Court line
     draw.rounded_rectangle((62, 220, 1338, 760), radius=36, outline="#d7c9b6", width=6)
     draw.line((700, 220, 700, 760), fill="#d7c9b6", width=5)
     draw.ellipse((590, 365, 810, 585), outline="#d7c9b6", width=5)
 
-    # Manual scoreboard
     draw.rounded_rectangle((120, 285, 500, 600), radius=18, fill="#1c2833", outline="#111", width=4)
     draw.text((155, 320), "白队", font=label, fill="#ffffff")
     draw.text((380, 320), "蓝队", font=label, fill="#ffffff", anchor="ra")
@@ -64,7 +73,6 @@ def make_grassroots_sketch(dst: Path) -> None:
     draw.text((355, 420), "06", font=font(96, True), fill=red)
     draw.text((160, 555), "观众远处看不清 / 不知道犯规暂停", font=small, fill="#c9d2dc")
 
-    # Complex sheet
     draw.rounded_rectangle((865, 270, 1260, 625), radius=12, fill="#ffffff", outline=gray, width=4)
     draw.text((900, 305), "篮球技术统计表", font=label, fill=ink)
     for i in range(7):
@@ -74,10 +82,39 @@ def make_grassroots_sketch(dst: Path) -> None:
         draw.line((x, 360, x, 592), fill="#bfc8d2", width=2)
     draw.text((920, 650), "表格字段多，临时技术员容易漏记", font=body, fill="#6b6257")
 
-    # Person
     draw.ellipse((620, 360, 695, 435), fill="#2f4155")
     draw.rounded_rectangle((585, 435, 735, 625), radius=40, fill=green)
     draw.text((560, 670), "体育爱好者能看懂比赛，\n但不一定会填专业表。", font=body, fill=ink)
+    img.save(dst, quality=92)
+
+
+def make_workflow_board(dst: Path) -> None:
+    screenshots = FINAL_DIR / "screenshots"
+    items = [
+        ("01_devtools_project_tree.png", "工程结构"),
+        ("02_architecture_design.png", "架构设计"),
+        ("03_create_add_player.png", "建赛与添加球员"),
+        ("04_scoreboard_natural_language.png", "自然语言录入"),
+        ("05_full_scenario_test_result.png", "完整场景测试"),
+        ("06_pdf_report_player_stats.png", "中文 PDF 报告"),
+    ]
+    w, h = 1800, 1040
+    img = Image.new("RGB", (w, h), "#101721")
+    draw = ImageDraw.Draw(img)
+    title_font = font(50, True)
+    label_font = font(28, True)
+    caption_font = font(22)
+    draw.text((62, 46), "成果测试流程效果图", font=title_font, fill="#f6f7fb")
+    draw.text((64, 112), "从工程、架构、建赛、录入、自动化测试到中文报告的完整闭环。", font=caption_font, fill="#b9c7d5")
+
+    card_w, card_h = 520, 375
+    positions = [(60, 180), (640, 180), (1220, 180), (60, 610), (640, 610), (1220, 610)]
+    for idx, ((name, label), (x, y)) in enumerate(zip(items, positions), start=1):
+        draw.rounded_rectangle((x, y, x + card_w, y + card_h), radius=22, fill="#f6f1e8", outline="#00b784", width=3)
+        draw.text((x + 20, y + 18), f"{idx:02d}  {label}", font=label_font, fill="#102033")
+        with Image.open(screenshots / name) as src:
+            fitted = fit_image(src, (card_w - 44, card_h - 82), "#eef2f5")
+        img.paste(fitted, (x + 22, y + 62))
     img.save(dst, quality=92)
 
 
@@ -86,10 +123,14 @@ def prepare_assets() -> None:
     resize_image(REQ_DIR / "篮球计分设备素材1.jpg", ASSET_DIR / "scoreboard-large.jpg")
     resize_image(REQ_DIR / "篮球计分设备素材2.jpg.jpg", ASSET_DIR / "scoreboard-compact.jpg")
     resize_image(REQ_DIR / "篮球计分设备素材3.jpg", ASSET_DIR / "scoreboard-facility.jpg")
-    resize_image(REQ_DIR / "篮球协会数据统计表格.jpg", ASSET_DIR / "stats-sheet.jpg", max_width=1200)
+    resize_image(REQ_DIR / "篮球协会数据统计表格.jpg", ASSET_DIR / "stats-sheet.jpg", max_width=1400)
     make_grassroots_sketch(ASSET_DIR / "grassroots-sketch.jpg")
+    make_workflow_board(ASSET_DIR / "workflow-board.jpg")
+
     screenshots = FINAL_DIR / "screenshots"
     for item in [
+        "01_devtools_project_tree.png",
+        "02_architecture_design.png",
         "03_create_add_player.png",
         "04_scoreboard_natural_language.png",
         "05_full_scenario_test_result.png",
@@ -98,439 +139,355 @@ def prepare_assets() -> None:
         shutil.copy2(screenshots / item, ASSET_DIR / item)
 
 
-def slide_object(oid: str, inner: str, left: str, top: str, width: str, height: str = "auto") -> str:
-    style = f"left:{left};top:{top};width:{width};"
-    if height != "auto":
-        style += f"height:{height};"
-    return f"""
-      <div class="slide-object" data-slide-object data-oid="{oid}" data-object-type="text" style="{style}">
-        <button type="button" class="slide-object-move" aria-label="Move object">⠿</button>
+def controls() -> str:
+    return """
+        <button type="button" class="slide-object-move" aria-label="Move">⠿</button>
         <button type="button" class="slide-object-delete" aria-label="Delete object">×</button>
-        <button type="button" class="slide-object-resize" aria-label="Resize"></button>
-        <div class="slide-object-text editable" contenteditable="false">{inner}</div>
+        <button type="button" class="slide-object-resize" aria-label="Resize"></button>"""
+
+
+def style_from(left: str, top: str, width: str, height: str | None = None) -> str:
+    style = f"left:{left};top:{top};width:{width};"
+    if height:
+        style += f"height:{height};"
+    return style
+
+
+def text_object(oid: str, inner: str, left: str, top: str, width: str, height: str | None = None, cls: str = "") -> str:
+    return f"""
+      <div class="slide-object {cls}" data-slide-object data-oid="{oid}" data-object-type="text" style="{style_from(left, top, width, height)}">
+{controls()}
+        <div class="slide-object-text" contenteditable="false">{inner}</div>
       </div>"""
 
 
-def img_tag(src: str, alt: str, cls: str = "") -> str:
-    return f'<img class="{cls}" src="html-ppt-assets/{src}" alt="{html.escape(alt)}">'
+def image_object(
+    oid: str,
+    src: str,
+    alt: str,
+    left: str,
+    top: str,
+    width: str,
+    height: str,
+    cls: str = "shot-frame",
+    fit: str = "contain",
+) -> str:
+    return f"""
+      <div class="slide-object image-object" data-slide-object data-oid="{oid}" data-object-type="image" style="{style_from(left, top, width, height)}">
+{controls()}
+        <div class="slide-object-graphic {cls}">
+          <img src="html-ppt-assets/{html.escape(src)}" alt="{html.escape(alt)}" style="object-fit:{fit};">
+        </div>
+      </div>"""
 
 
-def build_slides() -> list[str]:
-    slides: list[str] = []
-
-    def section(n: int, cls: str, content: str) -> None:
-        slides.append(f'<section class="slide {cls}" id="slide-{n}" data-title="{" ".join(cls.split("-"))}">{content}</section>')
-
-    section(1, "cover", f"""
-      <div class="scoreboard-strip">08 <span>:</span> 06</div>
-      {slide_object("s1-o1", '<p class="eyebrow">i坤队 / solo / hackathon</p><h1>篮球技术台自动化</h1><p class="lead">把校园篮球赛从纸笔技术台，带到自然语言驱动的小程序闭环。</p>', "7%", "18%", "58%")}
-      {slide_object("s1-o2", '<div class="metric-row"><b>1人</b><span>完成计分、计时、提醒、归档</span></div><div class="metric-row"><b>172s</b><span>演示视频已满足 3 分钟以内</span></div>', "69%", "23%", "24%")}
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(2, "image-left", f"""
-      <figure class="photo-card large">{img_tag("scoreboard-facility.jpg", "大型场馆计分系统")}</figure>
-      {slide_object("s2-o1", '<p class="eyebrow">真实痛点 01</p><h2>专业计分设施贵且复杂</h2><p>大型屏幕、控制台和专业记录系统更适合正式赛事。对于校园内篮球爱好者比赛，硬件和操作成本都过高。</p><ul><li>依赖场馆、设备和专人维护</li><li>信息面板复杂，临时技术员难上手</li><li>基层比赛很难长期复用</li></ul>', "54%", "14%", "38%")}
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(3, "split", f"""
-      {slide_object("s3-o1", '<p class="eyebrow">真实痛点 02</p><h2>基层赛事更常见：翻分牌 + 记录表</h2><p>便捷是第一优先级，但便捷也带来新的问题：观众看分困难，技术台容易漏记，专业统计表看不懂。</p>', "6%", "12%", "42%")}
-      <figure class="photo-card">{img_tag("grassroots-sketch.jpg", "基层篮球赛计分示意图")}</figure>
-      <div class="pain-grid">
-        <div><b>观众</b><span>远处看不清比分；不知道犯规、暂停、节次</span></div>
-        <div><b>技术台</b><span>临时人员门槛高；表格字段多，容易漏填</span></div>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(4, "comparison", f"""
-      {slide_object("s4-o1", '<p class="eyebrow">现有产品不足</p><h2>按钮式小程序降低了门槛，但还没有真正“无门槛”</h2><p>现有小程序能做计分，但得分、犯规等技术指标分开记录，技术员仍需要找按钮、切模块。</p>', "6%", "10%", "54%")}
-      <div class="compare-cards">
-        <div class="bad"><h3>仍有操作门槛</h3><p>临场需要判断：这次事件该点哪个按钮、在哪个模块记录。</p></div>
-        <div class="bad"><h3>规则提醒不足</h3><p>暂停、计时、最后一分钟、犯规临界提醒常被忽略。</p></div>
-        <div class="good"><h3>本项目方向</h3><p>只说清楚场上事件，系统自动转为得分、犯规、暂停和提醒。</p></div>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(5, "flow", f"""
-      {slide_object("s5-o1", '<p class="eyebrow">本产品定位</p><h2>面向校园篮球爱好者比赛</h2><p>让“懂球但不懂技术台”的体育爱好者，也能承担整场比赛记录。</p>', "6%", "9%", "42%")}
-      <div class="nl-pipeline">
-        <div class="bubble">白队 7 号两分命中</div>
-        <div class="arrow">→</div>
-        <div class="bubble">待确认事件</div>
-        <div class="arrow">→</div>
-        <div class="bubble">比分 +2<br>个人得分 +2<br>事件流入账</div>
-      </div>
-      <figure class="phone-shot">{img_tag("04_scoreboard_natural_language.png", "自然语言录入截图")}</figure>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(6, "operator", f"""
-      {slide_object("s6-o1", '<p class="eyebrow">核心价值 01</p><h2>原本三人的技术台，缩减到一人</h2><p>校园比赛常见配置是：两人计分相互校对，一人计时并翻总得分。本产品把“说事件 → 自动转指标 → 自动提醒 → 实时展示”串成一条链。</p>', "6%", "12%", "44%")}
-      <div class="reduction">
-        <div><strong>传统</strong><span>计分员 A</span><span>计分员 B</span><span>计时 / 翻分</span></div>
-        <div class="big-arrow">→</div>
-        <div><strong>现在</strong><span>一名技术员</span><span>自然语言记录</span><span>系统自动校对提醒</span></div>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(7, "rules", f"""
-      {slide_object("s7-o1", '<p class="eyebrow">核心价值 02</p><h2>不只是计分，还能防漏判</h2><p>事件流回放会同步计算犯规、暂停、节次和时间状态，在临界点提醒技术员。</p>', "6%", "10%", "44%")}
-      <div class="rule-cards">
-        <div><b>个人犯规</b><span>累计到 5 犯临界时提醒</span></div>
-        <div><b>球队犯规</b><span>本节第 5 犯提醒</span></div>
-        <div><b>暂停额度</b><span>记录使用次数，避免口头遗漏</span></div>
-        <div><b>计时提醒</b><span>最后一分钟、节次结束可追踪</span></div>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(8, "product-flow", f"""
-      {slide_object("s8-o1", '<p class="eyebrow">完整产品闭环</p><h2>建赛、观众、录入<br>签字归档</h2>', "6%", "9%", "42%")}
-      <div class="timeline">
-        <div><span>01</span><b>创建比赛</b><em>房间码 + 球员</em></div>
-        <div><span>02</span><b>观众加入</b><em>只读比分页</em></div>
-        <div><span>03</span><b>自然语言</b><em>解析 + 确认</em></div>
-        <div><span>04</span><b>比赛结束</b><em>finished 状态</em></div>
-        <div><span>05</span><b>签字归档</b><em>HTML / JSON / PDF</em></div>
-      </div>
-      <figure class="phone-mini left">{img_tag("03_create_add_player.png", "添加球员")}</figure>
-      <figure class="phone-mini right">{img_tag("06_pdf_report_player_stats.png", "中文报告")}</figure>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(9, "report", f"""
-      {slide_object("s9-o1", '<p class="eyebrow">赛后情绪价值</p><h2>球队比分之外<br>留下个人得分</h2><p>传统计分表有阅读门槛，不适合赛后分享。本产品导出中文报告，包含球队得分和球员个人得分，给参赛者可传播、可复盘的结果。</p>', "6%", "11%", "36%")}
-      <figure class="report-shot">{img_tag("06_pdf_report_player_stats.png", "中文 PDF 报告")}</figure>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(10, "proof", f"""
-      {slide_object("s10-o1", '<p class="eyebrow">当前完成度</p><h2>首版已跑通完整自然语言比赛</h2><p>测试场景覆盖 4 节、19 条文本事件、得分、犯规、暂停、时间更正、比赛结束、观众页、双方签字、归档导出和 PDF 打开。</p>', "6%", "10%", "44%")}
-      <figure class="terminal-shot">{img_tag("05_full_scenario_test_result.png", "测试通过截图")}</figure>
-      <div class="proof-grid">
-        <div><b>21</b><span>测试用例通过</span></div>
-        <div><b>8:6</b><span>完整比赛最终比分</span></div>
-        <div><b>3</b><span>HTML / JSON / PDF 导出</span></div>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    section(11, "closing", f"""
-      {slide_object("s11-o1", '<p class="eyebrow">下一步</p><h2>从校园比赛的首版闭环，扩展到更多技术指标与排名系统</h2><p>首版聚焦“低门槛技术台”。后续可扩展篮板、助攻、抢断、球员榜单、赛事排名和长期数据档案。</p>', "7%", "16%", "58%")}
-      <div class="closing-card">
-        <b>GitHub</b>
-        <span>INTERPUT/basketball-scorekeeper-miniapp</span>
-        <b>Team</b>
-        <span>i坤队 / solo</span>
-      </div>
-      <div class="slide-edit-layer"></div>
-    """)
-
-    return slides
+def graphic_object(oid: str, inner: str, left: str, top: str, width: str, height: str, cls: str = "data-card") -> str:
+    return f"""
+      <div class="slide-object {cls}" data-slide-object data-oid="{oid}" data-object-type="graphic" style="{style_from(left, top, width, height)}">
+{controls()}
+        <div class="slide-object-graphic">{inner}</div>
+      </div>"""
 
 
-def build_html() -> str:
-    viewport = (SKILL_DIR / "viewport-base.css").read_text(encoding="utf-8")
-    slides = "\n".join(build_slides())
-    return f"""<!doctype html>
-<html lang="zh-CN" data-deck-id="basketball-tech-table" data-mobile-adaptation="desktop-default">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>篮球技术台自动化 - 黑客松演示 HTML-PPT</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <style>
-    {viewport}
-
-    /* === THEME TOKENS: SCOREBOARD EDITORIAL === */
-    :root {{
-      --court-black:#11161d;
-      --court-ink:#16202c;
-      --court-paper:#f6f1e8;
-      --court-green:#00b784;
-      --court-orange:#ff7a1a;
-      --court-red:#f04438;
-      --court-line:rgba(255,255,255,.18);
-      --text-primary:#f7fbff;
-      --text-secondary:#b8c4d1;
-      --font-display:'Barlow Condensed','Noto Sans SC',sans-serif;
-      --font-body:'Noto Sans SC',sans-serif;
-      --deck-chrome-bg:rgba(9,13,18,.92);
-      --deck-chrome-border:rgba(255,255,255,.16);
-      --deck-chrome-text:#eef6ff;
-      --deck-chrome-muted:#9fb2c4;
-      --deck-chrome-accent:#00b784;
-      --deck-chrome-shadow:0 18px 42px rgba(0,0,0,.34);
-      --deck-chrome-surface:rgba(255,255,255,.08);
-    }}
-
-    /* === BASE SLIDE SYSTEM === */
-    * {{ box-sizing:border-box; }}
-    body {{ margin:0; font-family:var(--font-body); background:#080b10; color:var(--text-primary); }}
-    .slides-offset {{ min-height:100vh; }}
-    .slide {{
-      background:
-        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/64px 64px,
-        linear-gradient(0deg, rgba(255,255,255,.03) 1px, transparent 1px) 0 0/64px 64px,
-        radial-gradient(circle at 85% 15%, rgba(0,183,132,.18), transparent 30%),
-        linear-gradient(135deg, #0c1118, #151b25 55%, #080b10);
-      padding:clamp(1rem,2.5vw,2.4rem);
-    }}
-    .slide::before {{
-      content:attr(id);
-      position:absolute; right:clamp(1rem,2vw,2rem); top:clamp(.8rem,1.6vw,1.4rem);
-      font-family:var(--font-display); font-size:clamp(1.5rem,4vw,4.2rem);
-      color:rgba(255,255,255,.055); letter-spacing:.03em; text-transform:uppercase;
-    }}
-    h1,h2,h3,p {{ margin:0; }}
-    h1 {{ font-family:var(--font-body); font-weight:900; font-size:clamp(3.8rem,7.4vw,7rem); line-height:1.04; letter-spacing:0; }}
-    h2 {{ font-family:var(--font-body); font-weight:900; font-size:clamp(2.35rem,4.35vw,4.45rem); line-height:1.08; letter-spacing:0; }}
-    h3 {{ font-size:clamp(1.1rem,2.2vw,2rem); }}
-    p {{ font-size:clamp(1rem,1.55vw,1.55rem); line-height:1.55; color:var(--text-secondary); }}
-    ul {{ margin:clamp(1rem,2vh,1.6rem) 0 0; padding-left:1.2em; color:var(--text-secondary); }}
-    li {{ font-size:clamp(.95rem,1.35vw,1.25rem); line-height:1.45; margin:.45em 0; }}
-    .eyebrow {{ color:var(--court-green); font-weight:800; letter-spacing:.14em; text-transform:uppercase; font-size:clamp(.8rem,1.2vw,1.05rem); margin-bottom:clamp(.5rem,1vh,1rem); }}
-    .lead {{ font-size:clamp(1.2rem,2.1vw,2.1rem); max-width:18em; color:#d9e4ee; margin-top:clamp(1rem,2vh,1.4rem); }}
-    .slide-object {{ position:absolute; z-index:8; }}
-    .slide-object-text {{ width:100%; overflow-wrap:break-word; }}
-
-    /* === VISUAL COMPONENTS === */
-    .scoreboard-strip {{ position:absolute; right:7%; bottom:10%; font-family:var(--font-display); font-size:clamp(6rem,12vw,12rem); color:#ff362e; text-shadow:0 0 28px rgba(255,54,46,.3); }}
-    .scoreboard-strip span {{ color:#f6f1e8; }}
-    .metric-row {{ display:flex; gap:clamp(.8rem,1.6vw,1.4rem); align-items:baseline; margin:clamp(.7rem,1.2vh,1rem) 0; padding:.6rem .8rem; border-left:5px solid var(--court-green); background:rgba(255,255,255,.05); }}
-    .metric-row b {{ font-family:var(--font-display); font-size:clamp(2.6rem,5vw,5.2rem); color:var(--court-orange); }}
-    .metric-row span {{ color:#dce7ef; font-size:clamp(.95rem,1.4vw,1.2rem); }}
-    .photo-card {{ position:absolute; right:6%; top:18%; width:42%; height:min(58vh,610px); border:1px solid rgba(255,255,255,.14); border-radius:20px; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.4); background:#111; }}
-    .photo-card.large {{ left:6%; right:auto; top:14%; width:44%; height:min(68vh,720px); }}
-    .photo-card img,.report-shot img,.terminal-shot img,.phone-shot img,.phone-mini img {{ width:100%; height:100%; object-fit:cover; max-height:none; }}
-    .photo-card.large img {{ object-fit:cover; }}
-    .pain-grid {{ position:absolute; left:6%; bottom:9%; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; width:45%; }}
-    .pain-grid div,.compare-cards div,.rule-cards div,.proof-grid div {{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13); border-radius:18px; padding:clamp(1rem,1.8vw,1.6rem); }}
-    .pain-grid b,.rule-cards b {{ display:block; color:var(--court-orange); font-size:clamp(1.2rem,2vw,1.8rem); margin-bottom:.5rem; }}
-    .pain-grid span,.rule-cards span {{ color:#d4e0ec; font-size:clamp(.9rem,1.3vw,1.12rem); line-height:1.45; }}
-    .compare-cards {{ position:absolute; left:6%; right:6%; bottom:9%; display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem; }}
-    .compare-cards h3 {{ color:#fff; margin-bottom:.6rem; }}
-    .compare-cards p {{ font-size:clamp(.9rem,1.25vw,1.14rem); }}
-    .compare-cards .bad {{ border-color:rgba(240,68,56,.4); }}
-    .compare-cards .good {{ border-color:rgba(0,183,132,.55); background:rgba(0,183,132,.12); }}
-    .nl-pipeline {{ position:absolute; left:7%; bottom:14%; width:58%; display:flex; align-items:center; gap:1rem; }}
-    .bubble {{ flex:1; min-height:110px; display:flex; align-items:center; justify-content:center; text-align:center; padding:1rem; background:#f6f1e8; color:#141b25; border-radius:18px; font-weight:800; font-size:clamp(1rem,1.6vw,1.5rem); }}
-    .arrow,.big-arrow {{ color:var(--court-orange); font-family:var(--font-display); font-size:clamp(3rem,6vw,6rem); }}
-    .phone-shot {{ position:absolute; right:11%; top:16%; width:22%; height:min(68vh,680px); }}
-    .reduction {{ position:absolute; right:7%; top:20%; width:42%; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:1rem; }}
-    .reduction div:not(.big-arrow) {{ background:#f6f1e8; color:#17202c; border-radius:22px; padding:1.2rem; min-height:360px; display:flex; flex-direction:column; gap:.75rem; }}
-    .reduction strong {{ font-family:var(--font-display); font-size:clamp(2.2rem,4vw,4.2rem); }}
-    .reduction span {{ padding:.7rem .9rem; background:#17202c; color:#f6f1e8; border-radius:12px; font-size:clamp(.9rem,1.3vw,1.1rem); }}
-    .rule-cards {{ position:absolute; right:7%; top:20%; width:44%; display:grid; grid-template-columns:1fr 1fr; gap:1rem; }}
-    .timeline {{ position:absolute; left:6%; right:6%; bottom:10%; display:grid; grid-template-columns:repeat(5,1fr); gap:.75rem; }}
-    .timeline div {{ min-height:190px; padding:1rem; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.06); border-radius:16px; display:flex; flex-direction:column; gap:.55rem; }}
-    .timeline span {{ color:var(--court-green); font-family:var(--font-display); font-size:clamp(2.5rem,4vw,4rem); }}
-    .timeline b {{ font-size:clamp(1rem,1.6vw,1.45rem); }}
-    .timeline em {{ color:var(--text-secondary); font-style:normal; font-size:clamp(.85rem,1.15vw,1rem); }}
-    .phone-mini {{ position:absolute; top:18%; width:18%; height:min(46vh,460px); opacity:.86; }}
-    .phone-mini.left {{ right:29%; }}
-    .phone-mini.right {{ right:8%; }}
-    .report-shot {{ position:absolute; right:7%; top:14%; width:44%; height:min(70vh,720px); background:#eff4f6; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,.16); }}
-    .terminal-shot {{ position:absolute; right:7%; top:16%; width:46%; height:min(54vh,560px); overflow:hidden; border-radius:20px; border:1px solid rgba(255,255,255,.16); }}
-    .proof-grid {{ position:absolute; right:7%; bottom:8%; width:46%; display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; }}
-    .proof-grid b {{ display:block; font-family:var(--font-display); font-size:clamp(2.6rem,5vw,5rem); color:var(--court-orange); }}
-    .proof-grid span {{ color:#d9e5ee; }}
-    .closing-card {{ position:absolute; right:8%; top:24%; width:28%; padding:2rem; border-radius:22px; background:#f6f1e8; color:#151b24; display:grid; gap:.75rem; }}
-    .closing-card b {{ color:var(--court-green); font-size:clamp(1rem,1.4vw,1.2rem); }}
-    .closing-card span {{ font-size:clamp(1rem,1.35vw,1.22rem); overflow-wrap:anywhere; }}
-
-    /* === EDITABLE RUNTIME CHROME === */
-    .deck-left-hover-anchor {{ position:fixed; left:0; top:0; z-index:10000; padding:10px; display:flex; flex-direction:column; gap:8px; }}
-    .deck-left-row {{ display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .2s ease; }}
-    .deck-left-hover-anchor.show .deck-left-row, body.deck-edit-mode .deck-left-row {{ opacity:1; pointer-events:auto; }}
-    .deck-left-row button,.slide-sidebar button {{ border:1px solid var(--deck-chrome-border); background:var(--deck-chrome-bg); color:var(--deck-chrome-text); border-radius:10px; padding:8px 11px; font:700 12px var(--font-body); box-shadow:var(--deck-chrome-shadow); cursor:pointer; }}
-    .deck-left-row button:hover,.slide-sidebar button:hover {{ background:var(--deck-chrome-accent); color:#06100d; }}
-    .slide-sidebar {{ position:fixed; right:0; top:0; width:min(320px,30vw); height:100vh; z-index:9999; transform:translateX(100%); transition:transform .25s ease; background:var(--deck-chrome-bg); color:var(--deck-chrome-text); border-left:1px solid var(--deck-chrome-border); padding:18px; overflow:auto; }}
-    body.deck-sidebar-open .slide-sidebar {{ transform:translateX(0); }}
-    .slide-sidebar h2 {{ font:800 18px var(--font-body); margin:0 0 12px; }}
-    .filmstrip-item {{ display:grid; grid-template-columns:32px 1fr; gap:10px; align-items:center; padding:10px; margin:8px 0; border:1px solid var(--deck-chrome-border); border-radius:12px; cursor:pointer; }}
-    .filmstrip-item.active {{ border-color:var(--deck-chrome-accent); background:rgba(0,183,132,.14); }}
-    .filmstrip-item span {{ color:var(--deck-chrome-muted); font-weight:800; }}
-    .slide-edit-layer {{ position:absolute; inset:0; pointer-events:none; z-index:6; }}
-    body.deck-edit-mode .slide-object {{ outline:1px dashed rgba(0,183,132,.55); border-radius:8px; }}
-    .slide-object-move,.slide-object-delete,.slide-object-resize {{ display:none; }}
-    body.deck-edit-mode .slide-object-move,body.deck-edit-mode .slide-object-delete {{ display:block; position:absolute; top:-28px; border:0; border-radius:8px; padding:4px 7px; background:var(--deck-chrome-accent); color:#06100d; cursor:pointer; }}
-    body.deck-edit-mode .slide-object-move {{ left:0; }}
-    body.deck-edit-mode .slide-object-delete {{ right:0; }}
-    body.deck-edit-mode .slide-object-resize {{ display:block; position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; background:var(--deck-chrome-accent); border:0; border-radius:50%; }}
-    body.deck-edit-mode .editable {{ background:rgba(255,255,255,.05); border-radius:8px; cursor:text; }}
-    .progress {{ position:fixed; left:0; bottom:0; height:4px; width:0; background:var(--court-green); z-index:10001; transition:width .2s ease; }}
-    .nav-dots {{ position:fixed; right:18px; top:50%; transform:translateY(-50%); display:grid; gap:8px; z-index:9998; }}
-    .nav-dots button {{ width:9px; height:9px; border-radius:999px; border:0; background:rgba(255,255,255,.28); cursor:pointer; }}
-    .nav-dots button.active {{ background:var(--court-green); }}
-
-    @media (max-width: 900px) {{
-      .photo-card,.photo-card.large,.phone-shot,.report-shot,.terminal-shot {{ width:42%; }}
-      .timeline {{ grid-template-columns:repeat(3,1fr); }}
-    }}
-  </style>
-</head>
-<body>
-  <!-- === EDITABLE DECK CHROME === -->
-  <div class="deck-left-hover-anchor" id="deckLeftHover" aria-label="Deck controls">
-    <div class="deck-left-row">
-      <button type="button" id="editToggle">Edit</button>
-      <button type="button" id="pagesToggle">Pages</button>
-      <button type="button" id="btnSave">Save</button>
-      <button type="button" id="btnExport">Export HTML</button>
-    </div>
+def section(n: int, cls: str, title: str, objects: str) -> str:
+    visible = " visible" if n == 0 else ""
+    return f"""
+<section class="slide deck-slide slide-{cls}{visible}" id="slide-{n}" data-title="{html.escape(title)}">
+  <div class="court-grid" aria-hidden="true"></div>
+  <div class="slide-index" aria-hidden="true">{n + 1:02d}</div>
+  <div class="slide-edit-layer">
+{objects}
   </div>
-  <aside class="slide-sidebar" id="slideSidebar" aria-label="Pages sidebar">
-    <h2>Pages</h2>
-    <div id="filmstripList"></div>
-  </aside>
-  <div class="progress" id="progress"></div>
-  <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+</section>"""
 
-  <!-- === SLIDES === -->
-  <main class="slides-offset" id="slidesRoot">
-    {slides}
-  </main>
 
-  <script>
-    /* === PRESENTATION AND EDIT RUNTIME === */
-    const root = document.getElementById('slidesRoot');
-    const storageKey = 'deck:' + document.documentElement.dataset.deckId;
-    let slides = [];
-    let current = 0;
+def build_slides() -> str:
+    slides: list[str] = []
+    slides.append(section(0, "cover", "篮球技术台自动化", "\n".join([
+        text_object("s0-o0", '<p class="eyebrow">i坤队 / solo / hackathon</p><h1>篮球技术台自动化</h1><p class="lead">校园篮球赛的一人技术台：自然语言记录、实时提醒、观众看分、签字归档。</p>', "6%", "12%", "58%"),
+        text_object("s0-o1", '<div class="score-led">08<span>:</span>06</div><p class="score-note">白队 8 : 6 蓝队 · 完整自然语言比赛测试通过</p>', "57%", "48%", "34%"),
+        graphic_object("s0-o2", '<b>1人</b><span>完成计分 / 计时 / 提醒 / 归档</span>', "65%", "16%", "25%", "18%", "metric-card"),
+        graphic_object("s0-o3", '<b>21/21</b><span>自动化测试通过</span>', "65%", "35%", "25%", "15%", "metric-card metric-card--dark"),
+    ])))
 
-    function refreshSlides() {{
-      slides = Array.from(root.querySelectorAll(':scope > section.slide'));
-      slides.forEach((slide, i) => {{
-        slide.id = slide.id || `slide-${{i + 1}}`;
-      }});
-      renderDots();
-      renderFilmstrip();
-      updateProgress();
-    }}
+    slides.append(section(1, "pain", "专业计分设施成本", "\n".join([
+        text_object("s1-o0", '<p class="eyebrow">真实痛点 01</p><h2>专业计分设施贵且复杂</h2><p>大型屏幕、控制台和专业记录系统更适合正式赛事。校园篮球爱好者比赛往往无法长期复用这些设备。</p>', "6%", "12%", "40%"),
+        image_object("s1-o1", "scoreboard-facility.jpg", "大型场馆计分系统", "50%", "12%", "42%", "60%", "photo-frame", "cover"),
+        graphic_object("s1-o2", '<b>限制</b><span>设备、场馆、专人维护缺一不可</span>', "6%", "70%", "26%", "13%"),
+        graphic_object("s1-o3", '<b>结果</b><span>基层比赛回到翻分牌和纸质表</span>', "35%", "70%", "26%", "13%"),
+    ])))
 
-    function goTo(index) {{
-      current = Math.max(0, Math.min(index, slides.length - 1));
-      slides[current].scrollIntoView({{ behavior: document.body.classList.contains('deck-edit-mode') ? 'auto' : 'smooth' }});
-      updateProgress();
-    }}
+    slides.append(section(2, "grassroots", "基层技术台痛点", "\n".join([
+        text_object("s2-o0", '<p class="eyebrow">真实痛点 02</p><h2>翻分牌和记录表解决不了全部问题</h2><p>观众看分困难；临时技术员要同时处理得分、犯规、暂停、计时，纸质表字段多且容易漏记。</p>', "6%", "10%", "43%"),
+        image_object("s2-o1", "grassroots-sketch.jpg", "基层篮球赛技术台示意图", "52%", "10%", "40%", "38%", "photo-frame", "contain"),
+        image_object("s2-o2", "stats-sheet.jpg", "篮球统计表格", "52%", "53%", "40%", "35%", "paper-frame", "contain"),
+        graphic_object("s2-o3", '<b>观众</b><span>远处看不清比分、犯规、暂停、节次</span>', "6%", "67%", "20%", "15%"),
+        graphic_object("s2-o4", '<b>技术台</b><span>懂球不等于会填专业统计表</span>', "28%", "67%", "20%", "15%"),
+    ])))
 
-    function updateProgress() {{
-      const pct = slides.length <= 1 ? 100 : ((current + 1) / slides.length) * 100;
-      document.getElementById('progress').style.width = pct + '%';
-      document.querySelectorAll('.nav-dots button').forEach((b, i) => b.classList.toggle('active', i === current));
-      document.querySelectorAll('.filmstrip-item').forEach((b, i) => b.classList.toggle('active', i === current));
-    }}
+    slides.append(section(3, "positioning", "产品定位", "\n".join([
+        text_object("s3-o0", '<p class="eyebrow">现有产品不足</p><h2>按钮式计分仍然要找按钮、切模块</h2><p>微信小程序契合基层篮球的便捷场景，但得分、犯规、暂停分开记录，临场操作依然有门槛。</p>', "6%", "11%", "48%"),
+        graphic_object("s3-o1", '<b>得分按钮</b><span>先判断队伍、球员、分值</span>', "8%", "62%", "23%", "15%"),
+        graphic_object("s3-o2", '<b>犯规按钮</b><span>再切到犯规模块</span>', "33%", "62%", "23%", "15%"),
+        graphic_object("s3-o3", '<b>暂停 / 计时</b><span>提醒缺失时容易漏</span>', "58%", "62%", "23%", "15%"),
+        graphic_object("s3-o4", '<div class="nl-card"><strong>自然语言</strong><em>白队 7 号两分命中</em><span>→ 待确认事件 → 比分 / 个人得分 / 事件流</span></div>', "57%", "18%", "34%", "34%", "nl-object"),
+    ])))
 
-    function renderDots() {{
-      const nav = document.getElementById('navDots');
-      nav.innerHTML = '';
-      slides.forEach((_, i) => {{
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.setAttribute('aria-label', 'Go to slide ' + (i + 1));
-        b.addEventListener('click', () => goTo(i));
-        nav.appendChild(b);
-      }});
-    }}
+    slides.append(section(4, "workflow", "成果测试流程", "\n".join([
+        text_object("s4-o0", '<p class="eyebrow">完整成果截图</p><h2>完整测试流程闭环</h2>', "6%", "7%", "70%"),
+        image_object("s4-o1", "workflow-board.jpg", "完整成果测试流程效果图", "6%", "27%", "88%", "62%", "workflow-frame", "contain"),
+    ])))
 
-    function renderFilmstrip() {{
-      const list = document.getElementById('filmstripList');
-      list.innerHTML = '';
-      slides.forEach((slide, i) => {{
-        const item = document.createElement('div');
-        item.className = 'filmstrip-item';
-        item.innerHTML = `<span>${{String(i + 1).padStart(2, '0')}}</span><b>${{slide.querySelector('h1,h2')?.textContent || slide.id}}</b>`;
-        item.addEventListener('click', () => goTo(i));
-        list.appendChild(item);
-      }});
-    }}
+    slides.append(section(5, "create", "建赛与球员", "\n".join([
+        text_object("s5-o0", '<p class="eyebrow">流程 01</p><h2>建赛与添加球员</h2><p>球员名单不再要求复杂格式，点击添加后分别输入球衣号码和球员名称，降低临时技术员误填概率。</p>', "6%", "12%", "35%"),
+        image_object("s5-o1", "03_create_add_player.png", "建赛页添加球员弹窗", "48%", "9%", "36%", "76%", "app-frame", "contain"),
+        graphic_object("s5-o2", '<b>房间码</b><span>四位码让观众快速加入</span>', "6%", "63%", "18%", "13%"),
+        graphic_object("s5-o3", '<b>名单</b><span>号码和姓名分开输入</span>', "26%", "63%", "18%", "13%"),
+    ])))
 
-    function toggleEdit(force) {{
-      const active = force ?? !document.body.classList.contains('deck-edit-mode');
-      document.body.classList.toggle('deck-edit-mode', active);
-      document.querySelectorAll('.editable').forEach(el => el.setAttribute('contenteditable', active ? 'true' : 'false'));
-    }}
+    slides.append(section(6, "input", "自然语言录入", "\n".join([
+        text_object("s6-o0", '<p class="eyebrow">流程 02</p><h2>自然语言录入<br>待确认入账</h2><p>技术员只要说清楚或输入场上事件，系统解析为待确认事件；确认后更新比分、犯规、暂停和提醒。</p>', "6%", "10%", "37%"),
+        image_object("s6-o1", "04_scoreboard_natural_language.png", "自然语言录入技术台", "47%", "8%", "37%", "78%", "app-frame", "contain"),
+        graphic_object("s6-o2", '<div class="pipeline"><b>白队 7 号两分命中</b><span>解析</span><b>确认事件</b><span>入账</span><b>比分 +2</b></div>', "6%", "63%", "36%", "18%", "pipeline-object"),
+    ])))
 
-    function saveDeck() {{
-      localStorage.setItem(storageKey, root.innerHTML);
-      alert('已保存到浏览器 localStorage');
-    }}
+    slides.append(section(7, "rules", "一人技术台", "\n".join([
+        text_object("s7-o0", '<p class="eyebrow">核心价值</p><h2>三人技术台缩减到一人</h2><p>过去常见配置是两人计分互相校对，一人计时并翻总分。现在由事件流统一计算并提醒。</p>', "6%", "12%", "42%"),
+        graphic_object("s7-o1", '<strong>传统</strong><span>计分员 A</span><span>计分员 B</span><span>计时 / 翻分</span>', "53%", "13%", "18%", "46%", "role-card"),
+        text_object("s7-o2", '<div class="arrow-big">→</div>', "72%", "26%", "7%"),
+        graphic_object("s7-o3", '<strong>现在</strong><span>一名技术员</span><span>自然语言记录</span><span>系统自动提醒</span>', "79%", "13%", "18%", "46%", "role-card role-card--green"),
+        graphic_object("s7-o4", '<b>个人犯规</b><span>5 犯临界提醒</span>', "6%", "65%", "20%", "14%"),
+        graphic_object("s7-o5", '<b>球队犯规</b><span>本节第 5 犯提醒</span>', "28%", "65%", "20%", "14%"),
+        graphic_object("s7-o6", '<b>暂停 / 时间</b><span>额度与最后一分钟提示</span>', "50%", "65%", "26%", "14%"),
+    ])))
 
-    function loadDeck() {{
-      const saved = localStorage.getItem(storageKey);
-      if (saved) root.innerHTML = saved;
-      refreshSlides();
-    }}
+    slides.append(section(8, "test", "完整测试结果", "\n".join([
+        text_object("s8-o0", '<p class="eyebrow">测试与 Debug</p><h2>完整自然语言比赛已跑通</h2><p>自动化场景覆盖 4 节、19 条文本事件、得分、犯规、暂停、时间更正、比赛结束、观众页、签字、归档和 PDF 打开。</p>', "6%", "10%", "38%"),
+        image_object("s8-o1", "05_full_scenario_test_result.png", "完整场景测试结果", "46%", "10%", "45%", "58%", "terminal-frame", "contain"),
+        graphic_object("s8-o2", '<b>21/21</b><span>测试用例通过</span>', "47%", "72%", "13%", "13%", "metric-card"),
+        graphic_object("s8-o3", '<b>8:6</b><span>最终比分</span>', "62%", "72%", "13%", "13%", "metric-card"),
+        graphic_object("s8-o4", '<b>3</b><span>HTML / JSON / PDF</span>', "77%", "72%", "13%", "13%", "metric-card"),
+    ])))
 
-    function exportHtml() {{
-      const clone = document.documentElement.cloneNode(true);
-      clone.querySelector('body')?.classList.remove('deck-edit-mode', 'deck-sidebar-open');
-      clone.querySelectorAll('.editable').forEach(el => el.setAttribute('contenteditable', 'false'));
-      const blob = new Blob(['<!doctype html>\\n' + clone.outerHTML], {{ type: 'text/html;charset=utf-8' }});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'basketball-tech-table-html-ppt.html';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }}
+    slides.append(section(9, "report", "中文报告", "\n".join([
+        text_object("s9-o0", '<p class="eyebrow">赛后情绪价值</p><h2>球队比分之外，留下球员个人得分</h2><p>中文 PDF 报告降低统计表阅读门槛，包含球队得分、逐节比分、球员个人得分和犯规，适合赛后分享和复盘。</p>', "6%", "10%", "36%"),
+        image_object("s9-o1", "06_pdf_report_player_stats.png", "中文 PDF 报告包含个人得分", "47%", "7%", "43%", "80%", "pdf-frame", "contain"),
+        graphic_object("s9-o2", '<b>球队得分</b><span>逐节 + 总分</span>', "6%", "66%", "18%", "13%"),
+        graphic_object("s9-o3", '<b>个人得分</b><span>张三 / 赵六 / 李四 / 王五</span>', "26%", "66%", "18%", "13%"),
+    ])))
 
-    document.addEventListener('keydown', (event) => {{
-      if (event.target?.isContentEditable) return;
-      if (event.key === 'ArrowDown' || event.key === 'ArrowRight' || event.key === ' ') {{ event.preventDefault(); goTo(current + 1); }}
-      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {{ event.preventDefault(); goTo(current - 1); }}
-      if (event.key.toLowerCase() === 'e') toggleEdit();
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {{ event.preventDefault(); saveDeck(); }}
-    }});
+    slides.append(section(10, "engineering", "工程可运行", "\n".join([
+        text_object("s10-o0", '<p class="eyebrow">工程证据</p><h2>不是静态原型，是真实可运行小程序</h2><p>包含微信小程序工程、云函数、云数据库实时监听、自然语言解析、归档导出和持续测试。</p>', "6%", "8%", "42%"),
+        image_object("s10-o1", "01_devtools_project_tree.png", "微信开发者工具工程结构", "50%", "8%", "20%", "43%", "shot-frame", "contain"),
+        image_object("s10-o2", "02_architecture_design.png", "系统架构设计", "72%", "8%", "20%", "43%", "shot-frame", "contain"),
+        graphic_object("s10-o3", '<b>GitHub</b><span>INTERPUT/basketball-scorekeeper-miniapp</span>', "6%", "63%", "31%", "13%"),
+        graphic_object("s10-o4", '<b>已验证</b><span>build:miniprogram / typecheck / npm test</span>', "40%", "63%", "31%", "13%"),
+        text_object("s10-o5", '<p class="closing-copy">后续扩展：篮板、助攻、抢断、赛事排名和长期数据档案。</p>', "6%", "81%", "64%"),
+    ])))
 
-    let hoverTimer = null;
-    const hover = document.getElementById('deckLeftHover');
-    hover.addEventListener('mouseenter', () => {{ clearTimeout(hoverTimer); hover.classList.add('show'); }});
-    hover.addEventListener('mouseleave', () => {{ hoverTimer = setTimeout(() => hover.classList.remove('show'), 400); }});
-    document.getElementById('editToggle').addEventListener('click', () => toggleEdit());
-    document.getElementById('pagesToggle').addEventListener('click', () => document.body.classList.toggle('deck-sidebar-open'));
-    document.getElementById('btnSave').addEventListener('click', saveDeck);
-    document.getElementById('btnExport').addEventListener('click', exportHtml);
+    return "\n".join(slides)
 
-    const observer = new IntersectionObserver((entries) => {{
-      entries.forEach(entry => {{
-        if (entry.isIntersecting) {{
-          current = slides.indexOf(entry.target);
-          updateProgress();
-        }}
-      }});
-    }}, {{ threshold: 0.55 }});
 
-    const urlParams = new URLSearchParams(location.search);
-    const shot = urlParams.get('shot');
-    if (shot || urlParams.get('fresh')) {{
-      refreshSlides();
-    }} else {{
-      loadDeck();
-    }}
-    slides.forEach(slide => observer.observe(slide));
-    if (shot) {{
-      const target = Math.max(0, Math.min(Number(shot) - 1, slides.length - 1));
-      document.body.classList.add('screenshot-mode');
-      slides.forEach((slide, index) => {{
-        slide.style.display = index === target ? 'flex' : 'none';
-      }});
-      current = target;
-      updateProgress();
-    }}
-  </script>
-</body>
-</html>
+CUSTOM_CSS = """
+
+    /* === Basketball scorekeeper deck: Bold Signal inspired === */
+    :root {
+      --font-display: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      --font-body: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      --body-size: clamp(0.95rem, 1.18vw, 1.22rem);
+      --deck-chrome-bg: rgba(11, 18, 27, 0.92);
+      --deck-chrome-border: rgba(255, 255, 255, 0.18);
+      --deck-chrome-text: #edf7ff;
+      --deck-chrome-muted: #9fb2c7;
+      --deck-chrome-accent: #00b784;
+      --deck-chrome-shadow: 0 20px 50px rgba(0, 0, 0, 0.34);
+      --deck-chrome-surface: rgba(18, 28, 40, 0.94);
+      --bg-deep: #10151d;
+      --bg-mid: #16202b;
+      --ink: #f7fbff;
+      --muted: #b7c7d7;
+      --green: #00b784;
+      --orange: #ff7a1a;
+      --red: #ff473d;
+      --paper: #f6f1e8;
+    }
+
+    html, body { background: var(--bg-deep); color: var(--ink); font-family: var(--font-body); }
+    .slides-offset { background: var(--bg-deep); }
+    .deck-slide {
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 78% 6%, rgba(0, 183, 132, 0.23), transparent 34%),
+        linear-gradient(135deg, #0f141c 0%, #182332 62%, #10151d 100%);
+      color: var(--ink);
+    }
+    .court-grid {
+      position: absolute; inset: 0; opacity: 0.32; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+      background-size: clamp(44px, 5.2vw, 84px) clamp(44px, 5.2vw, 84px);
+      pointer-events: none;
+    }
+    .slide-index {
+      position: absolute; right: 5%; top: 5%; z-index: 1;
+      font: 900 clamp(2.6rem, 6vw, 6.4rem) var(--font-display);
+      color: rgba(255,255,255,.055);
+    }
+    .slide-edit-layer { position:absolute; inset:0; z-index:5; pointer-events:none; }
+    .slide-object { pointer-events:auto; }
+    .slide-object-text { width: 100%; box-sizing: border-box; overflow-wrap: break-word; color: var(--ink); }
+    .slide-object-graphic { width: 100%; height: 100%; box-sizing: border-box; }
+    .slide-object-graphic img {
+      display:block; width:100%; height:100%; max-height:min(76vh, 820px);
+      object-position:center; border:0; pointer-events:none;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: clamp(3.5rem, 7.3vw, 7.2rem);
+      line-height: 1.02; letter-spacing: 0; font-weight: 900;
+      max-width: 10em;
+    }
+    h2 {
+      font-size: clamp(2.25rem, 4.7vw, 4.9rem);
+      line-height: 1.08; letter-spacing: 0; font-weight: 900;
+      max-width: 12em;
+    }
+    p { font-size: clamp(1rem, 1.45vw, 1.42rem); line-height: 1.55; color: var(--muted); }
+    .lead { margin-top: clamp(1rem, 2vh, 1.6rem); max-width: 24em; color:#dce7ef; }
+    .eyebrow {
+      color: var(--green); font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+      font-size: clamp(.78rem, 1.05vw, 1rem); margin-bottom: clamp(.55rem, 1.1vh, .9rem);
+    }
+    .score-led {
+      font: 900 clamp(5rem, 10vw, 10rem) var(--font-display);
+      color: var(--red); line-height: .86; text-shadow: 0 0 30px rgba(255,71,61,.26);
+    }
+    .score-led span { color: var(--paper); padding: 0 .08em; }
+    .score-note { margin-top: clamp(.8rem, 1.4vh, 1rem); color:#d7e4f1; }
+    .metric-card .slide-object-graphic,
+    .data-card .slide-object-graphic {
+      padding: clamp(1rem, 1.8vw, 1.55rem); border-radius: clamp(12px, 1.4vw, 20px);
+      border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07);
+      display: flex; flex-direction: column; justify-content: center; gap: .45rem;
+    }
+    .metric-card .slide-object-graphic { border-left: 6px solid var(--green); }
+    .metric-card--dark .slide-object-graphic { border-left-color: var(--orange); }
+    .metric-card b, .data-card b {
+      display:block; font: 900 clamp(1.45rem, 3vw, 3.2rem) var(--font-display); color: var(--orange);
+    }
+    .metric-card span, .data-card span { color:#dce8f2; font-size: clamp(.86rem, 1.15vw, 1.06rem); line-height:1.35; }
+    .photo-frame, .paper-frame, .shot-frame, .app-frame, .terminal-frame, .pdf-frame, .workflow-frame {
+      overflow:hidden; border-radius: clamp(14px, 1.3vw, 22px);
+      border: 1px solid rgba(255,255,255,.18); background:#edf2f5;
+      box-shadow: 0 28px 70px rgba(0,0,0,.36);
+      padding: clamp(.35rem, .7vw, .7rem);
+    }
+    .photo-frame { background:#10151d; }
+    .paper-frame { background:#f8f4eb; }
+    .app-frame { background:#eef2f5; padding: clamp(.6rem, 1vw, 1rem); }
+    .terminal-frame { background:#07101d; padding: clamp(.55rem, .8vw, .85rem); }
+    .pdf-frame { background:#f7fafc; padding: clamp(.7rem, 1vw, 1rem); }
+    .workflow-frame { background:#0e1621; padding: clamp(.4rem, .7vw, .7rem); }
+    .nl-card {
+      width:100%; height:100%; box-sizing:border-box; border-radius: clamp(16px,1.5vw,24px);
+      background: var(--paper); color:#15202b; padding: clamp(1.2rem,2.2vw,2rem);
+      display:grid; gap: clamp(.6rem,1vh,.95rem); align-content:center;
+      box-shadow: 0 26px 60px rgba(0,0,0,.30);
+    }
+    .nl-card strong { color: var(--green); font-size: clamp(1.3rem,2.1vw,2.1rem); }
+    .nl-card em { font-style: normal; font-weight: 900; font-size: clamp(1.15rem,1.8vw,1.7rem); }
+    .nl-card span { color:#354252; font-size: clamp(.95rem,1.25vw,1.1rem); }
+    .pipeline {
+      width:100%; height:100%; display:grid; grid-template-columns: 1.2fr .5fr 1fr .5fr 1fr;
+      align-items:center; gap:.65rem;
+    }
+    .pipeline b {
+      background: var(--paper); color:#111923; border-radius: clamp(10px,1vw,16px);
+      padding: clamp(.75rem,1.2vw,1.2rem); text-align:center; font-size: clamp(.95rem,1.2vw,1.15rem);
+    }
+    .pipeline span { color: var(--orange); font-weight: 900; text-align:center; }
+    .role-card .slide-object-graphic {
+      background: var(--paper); color:#111923; border-radius: clamp(16px,1.5vw,24px);
+      padding: clamp(1rem,1.8vw,1.5rem); display:flex; flex-direction:column; gap:.75rem;
+    }
+    .role-card strong { font-size: clamp(1.6rem,2.9vw,3rem); }
+    .role-card span {
+      background:#172332; color:#f7fbff; border-radius: 10px;
+      padding: clamp(.55rem,.9vw,.8rem); font-size: clamp(.86rem,1vw,1rem);
+    }
+    .role-card--green .slide-object-graphic { border: 4px solid var(--green); }
+    .arrow-big { font: 900 clamp(4rem, 8vw, 8rem) var(--font-display); color: var(--orange); }
+    .closing-copy { color:#e7f1f9; font-size: clamp(1.25rem,2vw,2rem); font-weight:800; }
+
+    body.screenshot-mode .deck-left-hover-anchor,
+    body.screenshot-mode .deck-add-element-menu,
+    body.screenshot-mode .progress-bar,
+    body.screenshot-mode .nav-dots,
+    body.screenshot-mode .slide-sidebar,
+    body.screenshot-mode .rte-toolbar { display:none !important; }
+    body.screenshot-mode .slides-offset { padding-right:0 !important; scroll-snap-type:none !important; }
+
+    @media (max-height: 700px) {
+      h1 { font-size: clamp(3rem, 6.4vw, 6rem); }
+      h2 { font-size: clamp(2rem, 4vw, 4.1rem); }
+      p { font-size: clamp(.88rem, 1.2vw, 1.1rem); }
+    }
+    @media (max-height: 600px) {
+      .slide-object-graphic img { max-height: min(70vh, 620px); }
+    }
 """
 
 
+def reference_parts() -> tuple[str, str]:
+    ref = REFERENCE_HTML.read_text(encoding="utf-8")
+    ref = ref.replace(
+        '<html lang="en" data-deck-id="editable-deck-reference" data-mobile-adaptation="desktop-default">',
+        '<html lang="zh-CN" data-deck-id="basketball-tech-table-editable-v2" data-mobile-adaptation="desktop-default">',
+    )
+    ref = re.sub(r"<title>.*?</title>", "<title>篮球技术台自动化 - 可编辑 HTML-PPT</title>", ref, count=1, flags=re.S)
+    ref = ref.replace("</style>", CUSTOM_CSS + "\n  </style>", 1)
+    ref = ref.replace(
+        "  loadState();",
+        "  const deckUrlParams = new URLSearchParams(location.search);\n"
+        "  if (!deckUrlParams.has('fresh') && !deckUrlParams.has('shot')) loadState();",
+        1,
+    )
+    ref = ref.replace(
+        "  deck._updateChrome();\n})();",
+        "  const deckShotParam = new URLSearchParams(location.search).get('shot');\n"
+        "  if (deckShotParam) {\n"
+        "    deck.refreshSlides();\n"
+        "    const target = Math.max(0, Math.min(Number(deckShotParam) - 1, deck.slides.length - 1));\n"
+        "    document.body.classList.add('screenshot-mode');\n"
+        "    deck.slides.forEach((slide, index) => {\n"
+        "      slide.style.display = index === target ? 'block' : 'none';\n"
+        "      slide.classList.toggle('visible', index === target);\n"
+        "    });\n"
+        "    deck.current = target;\n"
+        "    window.scrollTo(0, 0);\n"
+        "  }\n"
+        "  deck._updateChrome();\n})();",
+        1,
+    )
+    marker = '<div class="slides-offset">'
+    start = ref.index(marker)
+    script_marker = "\n<script>"
+    script_start = ref.index(script_marker, start)
+    pre = ref[: start + len(marker)]
+    post = ref[script_start:]
+    return pre, post
+
+
+def build_html() -> str:
+    pre, post = reference_parts()
+    return pre + "\n" + build_slides() + "\n</div>" + post
+
+
 def main() -> None:
+    if not REFERENCE_HTML.exists():
+        raise FileNotFoundError(f"Missing frontend-slides-editable reference runtime: {REFERENCE_HTML}")
     prepare_assets()
     OUT_HTML.write_text(build_html(), encoding="utf-8")
     print(OUT_HTML)
